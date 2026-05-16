@@ -386,12 +386,65 @@ motorway, net of selection.
 
 ------------------------------------------------------------------------
 
-## 08 — staggered DiD (K7 opening year)
+## 08 — staggered DiD (a partial implementation)
 
-The A1 opened in four cohorts: 1959 (Milan-Bologna axis), 1960
-(Bologna-Florence Apennine crossing), 1962 (Rome-Naples leg), 1964
-(Tuscan spine closure). Each cohort gets its own long-DiD coefficient
-(R/08, S2). Findings:
+**Honesty note.** The A1 opened in four cohorts (K7 = 1959, 1960,
+1962, 1964) — all of which fall in the SAME inter-census window
+1961-1971. At the granularity of the census, the four cohorts share
+an identical event-time mapping (pre = 1961, first observed post =
+1971). A full Callaway-Sant'Anna staggered DiD with cohort-specific
+ATT(t,c) dynamics is therefore NOT identifiable from the
+post-treatment outcomes alone.
+
+What we CAN do (the only true staggered comparison available with
+this data):
+
+### (T1) Short-run staggered DiD 1951 → 1961
+
+At the 1961 census the 1959/60 cohorts have been treated for 1-2
+years; the 1962/64 cohorts are still pre-treatment. So:
+
+| group                        | what it is                          | n   |
+|------------------------------|-------------------------------------|-----|
+| **Early** (1959/60)          | treated by 1961                     | 19  |
+| **Late**  (1962/64)          | not yet treated at 1961             | 34  |
+| **Never** (control)          | comuni in A1 prov w/o A1 casello    | 1,141 |
+
+We estimate `Δy_{51→61} ~ Early + Late + factor(COD_PROV)` and form
+the contrast `ATT_short = b_Early − b_Late`. Findings:
+
+| outcome  | ATT_short | SE       | p     |
+|----------|-----------|----------|-------|
+| Δ log Pop      | +0.045 | (0.039)  | 0.24  |
+| Δ log Units    | **+0.089*** | (0.045)  | **0.046** |
+| Δ log Employees| +0.138 | (0.099)  | 0.16  |
+
+After 1-2 years of A1 exposure, the Early cohort already has 9% more
+local-unit growth than the Late cohort (significant). The pop and
+employment differences are positive but imprecise — consistent with
+the literature finding that firms relocate faster than households.
+
+**Parallel-trends warning**: the `b_Late` coefficient (Late minus
+Never) is itself +0.11 on log Pop and +0.15 on log Emp, both
+significant. This means **the not-yet-treated comuni were already
+on a stronger growth path than the never-treated** before A1
+arrived. Translation: A1 caselli were sited in comuni that were
+already converging upward. The within-cohort `ATT_short` partly
+nets this out (Early and Late share the selection mechanism), but
+the Early-vs-Never comparison overstates the true effect.
+
+### (S1) Plain event study on K0 (NOT staggered)
+
+Re-runs the M2 event study from R/04 on the K0=1 sample. Useful as
+robustness comparison with the W2 continuous event study.
+
+### (S2) Cohort heterogeneity in long DiD (NOT staggered)
+
+Each opening cohort is a separate dummy in the 1961-1991 long DiD,
+with `Never treated` as reference. This is HETEROGENEITY, not
+staggered identification — we still need ten years between censuses
+to see anything, so cohort-specific timing within 1959-1964 is
+invisible.
 
 | cohort | Δ log Pop | Δ log Units | Δ log Employees |
 |---|---|---|---|
@@ -400,9 +453,9 @@ The A1 opened in four cohorts: 1959 (Milan-Bologna axis), 1960
 | 1962 (n=17) | +0.16*   | **+0.65***| **+0.89***** |
 | 1964 (n=17) | +0.20*** | +0.31***  | +0.34*** |
 
-The 1962 cohort (Rome-Naples leg) shows the strongest effect on
-firms and employees — consistent with Lelo & Tani's qualitative
-finding that the South benefited most economically from the A1.
+The 1962 cohort (Rome-Naples leg) shows the strongest long-run
+effect on firms and employees — consistent with Lelo & Tani's
+qualitative finding that the South benefited most economically.
 
 ------------------------------------------------------------------------
 

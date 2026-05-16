@@ -1,141 +1,182 @@
 # =====================================================================
-# 08_staggered_did.R  --  staggered DiD exploiting K7 opening year
+# 08_staggered_did.R  --  staggered DiD à la Callaway-Sant'Anna
 # =====================================================================
 #
-# Rationale ------------------------------------------------------------
+# Honesty note --------------------------------------------------------
 #
-# The data carry the *opening year* of each A1 toll booth (K7, range
-# 1959-1964 — exactly matching Lelo & Tani Table 1). This gives us
-# VARIATION IN TREATMENT TIMING which is much richer than a simple
-# pre/post 1961-1991 comparison and is the modern standard in
-# difference-in-differences (Goodman-Bacon 2021, Callaway-Sant'Anna
-# 2021, de Chaisemartin-D'Haultfoeuille 2020).
+# The A1 toll booths opened in four cohorts (K7 = 1959, 1960, 1962,
+# 1964). The census panel is decennial: 1951, 1961, 1971, 1981, 1991.
+# All four cohorts fall in the SAME inter-census window (1961-1971),
+# so at the granularity of the census the four cohorts share an
+# identical event-time mapping (pre = 1961, first post = 1971).
 #
-# Three opening cohorts emerge from K7:
-#   1959 cohort  --  Milano-Piacenza-Parma-Modena-Bologna axis (the
-#                    "Via Emilia" branch)
-#   1960 cohort  --  Bologna-Firenze Apennine crossing
-#   1962 cohort  --  Roma-Frosinone-Cassino-Capua-Napoli leg
-#   1964 cohort  --  Valdarno-Chiusi-Orvieto-Orte (the spine closure)
+# This rules out a full Callaway-Sant'Anna staggered design with
+# the post-1961 outcomes alone -- there is no within-cohort variation
+# in event time to identify cohort-specific dynamics.
 #
-# We exploit this in three ways:
+# HOWEVER: at the **1961 census** the 1959 cohort has been treated
+# for 2 years and the 1960 cohort for 1 year, while the 1962 and
+# 1964 cohorts are still untreated. This gives us ONE genuinely
+# staggered comparison:
 #
-# (S1) Event study in EVENT TIME (year - K7) on log outcomes, with
-#      comune and calendar-year FE. The omitted event time is -1
-#      (the census just before opening). With census granularity (10y
-#      gaps), the available event times are -2, -1, 0, +1, +2 (or so)
-#      times the inter-census spacing — we use the closest census to
-#      year_open as e=0.
+#   (T1) Short-run staggered DiD:
+#        early cohorts (1959+1960)  treated in 1961
+#        late  cohorts (1962+1964)  not yet treated in 1961
+#        never-treated controls     same as ever
+#        outcome:  Delta y between 1951 and 1961
 #
-# (S2) Cohort-by-time interactions, plotting the average post-treatment
-#      coefficient by opening cohort (1959/1960/1962/1964). This is a
-#      simple "did the early cohorts gain more or less than the late
-#      cohorts?" diagnostic and gives a hint of the Goodman-Bacon
-#      decomposition bias.
+#   Identification:
+#     ATT_short = E[y_61 - y_51 | early] - E[y_61 - y_51 | late]
+#               + E[y_61 - y_51 | late ] - E[y_61 - y_51 | never]
 #
-# (S3) Long DiD by cohort:
-#        Delta y = a + b_c * (treat * cohort) + d_prov + e
-#      so we get a separate treatment effect for each opening cohort.
+#   The first difference compares treated-by-1961 to not-yet-treated,
+#   netting out anything that the cohort dummies absorb. The second
+#   difference uses the never-treated as the "clean" control. If the
+#   parallel-trends assumption holds, ATT_short identifies the 1959/
+#   1960 cohort's first 1-2 years of A1 exposure.
+#
+# Three blocks below:
+#
+#   (T1) Short-run staggered DiD as defined above (real staggered).
+#   (S1) Event study (non-staggered: shared event-time mapping).
+#        Re-labelled to remove the "staggered" claim.
+#   (S2) Cohort-by-cohort long DiD  --  heterogeneity, NOT staggered.
+#   (S4) Aree_Int 6-band heterogeneity.
 
 source("R/00_setup.R")
 panel <- readRDS("data/panel_long.rds")
 
-# ---- prep: event time relative to the closest census to year_open -----
-# Map K7 (1959,1960,1962,1964) to the corresponding pre/post census.
-# Census years are 1951, 1961, 1971, 1981, 1991. Treatment effectively
-# starts being measurable from the census AFTER opening:
-#   K7 in 1958-1964  -> pre census 1961, first post census 1971
-# We code event_time as (year - first_post_census). Since first_post is
-# always 1971 for the A1, event_time takes values -2 (1951), -1 (1961),
-# 0 (1971), +1 (1981), +2 (1991).
+# ---- cohort assignment ------------------------------------------------
 panel <- panel %>%
   mutate(
-    cohort   = case_when(
-      year_open <= 1959                   ~ "1959",
-      year_open >= 1960 & year_open <= 1961 ~ "1960",
-      year_open >= 1962 & year_open <= 1963 ~ "1962",
-      year_open >= 1964                   ~ "1964",
-      TRUE                                 ~ NA_character_),
-    cohort   = factor(cohort, levels = c("1959","1960","1962","1964")),
-    # event-time mapping: the next census after K7 is e=0
-    e_census = case_when(
-      is.na(year_open) ~ NA_real_,
-      year_open <= 1961 ~ (year - 1971) / 10,  # base = 1971 for early cohorts
-      year_open <= 1971 ~ (year - 1971) / 10,
-      year_open <= 1981 ~ (year - 1981) / 10,
-      TRUE              ~ (year - 1991) / 10),
-    e_census = ifelse(treat_A1 == 1, e_census, NA_real_)
+    cohort = case_when(
+      year_open == 1959                 ~ "1959",
+      year_open == 1960                 ~ "1960",
+      year_open >= 1961 & year_open<=1963 ~ "1962",
+      year_open >= 1964                 ~ "1964",
+      TRUE                              ~ NA_character_),
+    cohort = factor(cohort, levels = c("1959","1960","1962","1964")),
+    # "early" cohorts are treated by the 1961 census; "late" are not
+    early = ifelse(!is.na(cohort) & cohort %in% c("1959","1960"), 1L, 0L),
+    late  = ifelse(!is.na(cohort) & cohort %in% c("1962","1964"), 1L, 0L)
   )
 
-# Restrict to within-A1-province sample for clean comparison
 dat <- panel %>% filter(sample_tight)
 
-# Inspect cohort sizes
-cohort_n <- dat %>% filter(year == 1991, treat_A1 == 1) %>%
-  count(cohort)
-print(cohort_n)
-write_csv(cohort_n, "output/tables/s0_cohort_sizes.csv")
+# ---- (T1) Short-run staggered DiD 1951 -> 1961 -----------------------
+# Build the 1951-1961 first-difference dataset
+fd <- dat %>% filter(year %in% c(1951, 1961)) %>%
+  pivot_wider(id_cols = c(PRO_COM, COD_PROV, COD_REG, macro, treat_A1,
+                          cohort, early, late, year_open),
+              names_from = year,
+              values_from = c(P1, lP1, lUT, lAT),
+              names_sep = "_") %>%
+  mutate(d_lP = lP1_1961 - lP1_1951,
+         d_lU = lUT_1961 - lUT_1951,
+         d_lA = lAT_1961 - lAT_1951)
 
-# ---- (S1) Event study in event-time -----------------------------------
-# Build event-time dummies: e_{-2}, e_{-1} (omitted), e_{0}, e_{1}, e_{2}.
-# For controls (treat_A1==0), e_census is NA -> dummies are 0 (i.e.
-# the control group is the reference at every census).
-dat_es <- dat %>%
-  mutate(e_int = round(e_census))
-for (e in c(-2, 0, 1, 2)) {
-  dat_es[[paste0("E", ifelse(e<0,"m",""), abs(e))]] <-
-    as.integer(!is.na(dat_es$e_int) & dat_es$e_int == e & dat_es$treat_A1 == 1)
+# Define the comparison: early (n=19) vs late (n=34) vs never (n~1140)
+# - treat = "early": 1959/60 cohort, treated by 1961
+# - control 1 ("late"): 1962/64 cohort, NOT yet treated by 1961
+# - control 2 ("never"): all other comuni in the tight sample
+fd <- fd %>%
+  mutate(grp = case_when(early == 1 ~ "Early (treated by 1961)",
+                         late  == 1 ~ "Late (not yet treated)",
+                         TRUE       ~ "Never treated"),
+         grp = factor(grp, levels = c("Never treated",
+                                      "Late (not yet treated)",
+                                      "Early (treated by 1961)")))
+table(fd$grp)
+
+fit_T1 <- function(y) {
+  with_cluster(
+    lm(reformulate(c("grp", "factor(COD_PROV)"), y), data = fd),
+    fd$COD_PROV, fd)
 }
-# omitted: e = -1 (pre-opening census, 1961)
-event_terms <- c("Em2", "E0", "E1", "E2")
+t1_models <- list(
+  Pop   = fit_T1("d_lP"),
+  Units = fit_T1("d_lU"),
+  Emp   = fit_T1("d_lA"))
+regtab(t1_models, keep = "^grp",
+       out_csv = "output/tables/t1_staggered_shortrun.csv",
+       out_tex = "output/tables/t1_staggered_shortrun.tex",
+       title   = "Short-run staggered DiD 1951-1961 (TRUE staggered)")
 
-fit_event_S1 <- function(y) {
+# The interpretation:
+#   * coef on "Late (not yet treated)" should be ~0 if late and never
+#     groups followed the same pre-trend (parallel trends test).
+#   * coef on "Early (treated by 1961)" minus coef on "Late" is the
+#     **ATT_short** (1-2 years of A1 exposure).
+# Compute the contrast with delta-method SE.
+contrast_T1 <- function(m) {
+  V <- clubSandwich::vcovCR(m, cluster = attr(m, "cluster_vec"), type = "CR1")
+  b <- coef(m)
+  est <- b[["grpEarly (treated by 1961)"]] - b[["grpLate (not yet treated)"]]
+  v   <- V[c("grpEarly (treated by 1961)","grpLate (not yet treated)"),
+           c("grpEarly (treated by 1961)","grpLate (not yet treated)")]
+  se <- sqrt(v[1,1] + v[2,2] - 2*v[1,2])
+  tibble(estimate = est, se = se,
+         lo = est - 1.96*se, hi = est + 1.96*se,
+         t  = est/se, p = 2*(1 - pnorm(abs(est/se))))
+}
+att_short <- bind_rows(lapply(seq_along(t1_models), function(i) {
+  contrast_T1(t1_models[[i]]) %>% mutate(outcome = names(t1_models)[i])
+}))
+print(att_short)
+write_csv(att_short, "output/tables/t1_att_short_contrast.csv")
+message("[08] (T1) short-run staggered DiD done.")
+
+# ---- (S1) Event study (NOT staggered: shared event-time) -------------
+# We keep this as a robustness check: a standard event study on the
+# treat_A1 binary indicator, identical to M2 in R/04 but restricted to
+# the K0=1 list (so we can compare across the binary and continuous
+# specs on the same sample).
+
+dat_es <- dat
+for (k in CENSUS_YEARS) {
+  if (k == PRE_YEAR) next
+  dat_es[[paste0("D_", k)]] <- as.integer(dat_es$year == k) * dat_es$treat_A1
+}
+event_terms <- paste0("D_", setdiff(CENSUS_YEARS, PRE_YEAR))
+fit_S1 <- function(y) {
   rhs <- c(event_terms, "factor(PRO_COM)", "factor(year)")
   m <- lm(reformulate(rhs, y), data = dat_es)
   with_cluster(m, dat_es$COD_PROV, dat_es)
 }
 s1_models <- list(
-  `log Population`  = fit_event_S1("lP1"),
-  `log Local units` = fit_event_S1("lUT"),
-  `log Employees`   = fit_event_S1("lAT"))
-
-# Tidy + plot
+  `log Population`  = fit_S1("lP1"),
+  `log Local units` = fit_S1("lUT"),
+  `log Employees`   = fit_S1("lAT"))
 s1_long <- bind_rows(lapply(seq_along(s1_models), function(i) {
   m <- s1_models[[i]]; nm <- names(s1_models)[i]
-  td <- tidy_cr(m) %>% filter(grepl("^E", term) & !grepl("year|PRO_COM|Intercept", term)) %>%
-    mutate(event_time = case_when(term == "Em2" ~ -2, term == "E0" ~ 0,
-                                  term == "E1"  ~  1, term == "E2" ~ 2),
-           outcome = nm)
+  td <- tidy_cr(m) %>% filter(grepl("^D_", term)) %>%
+    mutate(year = as.integer(sub("D_", "", term)), outcome = nm)
   bind_rows(td,
-            tibble(term = "ref", event_time = -1, outcome = nm,
+            tibble(term = "ref", year = PRE_YEAR, outcome = nm,
                    estimate = 0, std.error = NA, statistic = NA,
                    p.value = NA, conf.low = 0, conf.high = 0))
 }))
 
 p_s1 <- s1_long %>%
-  ggplot(aes(x = event_time, y = estimate)) +
+  ggplot(aes(x = year, y = estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
-  geom_vline(xintercept = -0.5, linetype = "dotted", colour = "#c0392b") +
+  geom_vline(xintercept = A1_OPEN_YEAR, linetype = "dotted",
+             colour = "#c0392b") +
   geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
   facet_wrap(~ outcome, scales = "free_y") +
-  scale_x_continuous(breaks = -2:2,
-                     labels = c("-2 (1951)", "-1 (1961, ref)",
-                                "0 (1971)", "+1 (1981)", "+2 (1991)")) +
-  labs(x = NULL, y = "Event-time coefficient (95% CI)",
-       title = "Staggered event study (K7 opening year)",
-       subtitle = "Comune + year FE | reference: census just before opening") +
-  theme_paper() +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
-
-ggsave("output/figures/fig06_staggered_event_study.png", p_s1,
+  scale_x_continuous(breaks = CENSUS_YEARS) +
+  labs(x = NULL, y = "Coefficient on treat × year (95% CI)",
+       title = "Event study on K0=1 treatment indicator",
+       subtitle = paste0("Reference: ", PRE_YEAR,
+                         "  |  Not staggered: all cohorts share the same event-time mapping")) +
+  theme_paper()
+ggsave("output/figures/fig06_event_study_K0.png", p_s1,
        width = 9, height = 4.5, dpi = 200)
-ggsave("output/figures/fig06_staggered_event_study.pdf", p_s1,
+ggsave("output/figures/fig06_event_study_K0.pdf", p_s1,
        width = 9, height = 4.5)
-write_csv(s1_long, "output/tables/s1_event_study_eventtime.csv")
-message("[08] (S1) staggered event study done.")
+write_csv(s1_long, "output/tables/s1_event_study_K0.csv")
 
-# ---- (S2) Cohort-by-time interaction ----------------------------------
-# For each cohort, estimate the 1961 -> 1991 long DiD effect, separately.
+# ---- (S2) Cohort heterogeneity in long DiD (NOT staggered) -----------
 ctrls <- c("lP1_1961", "I4_1961", "SS4_1961",
            "L15_1961", "L16_1961", "L17_1961")
 wide <- panel %>%
@@ -148,11 +189,8 @@ wide <- panel %>%
               names_sep = "_") %>%
   mutate(d_lP = lP1_1991 - lP1_1961,
          d_lU = lUT_1991 - lUT_1961,
-         d_lA = lAT_1991 - lAT_1961)
-
-# Reset cohort to "Control" for non-treated
-wide <- wide %>%
-  mutate(cohort_g = factor(ifelse(treat_A1 == 1, as.character(cohort), "Control"),
+         d_lA = lAT_1991 - lAT_1961,
+         cohort_g = factor(ifelse(treat_A1 == 1, as.character(cohort), "Control"),
                            levels = c("Control","1959","1960","1962","1964")))
 
 fit_S2 <- function(y) {
@@ -164,13 +202,11 @@ s2_models <- list(
   Pop   = fit_S2("d_lP"),
   Units = fit_S2("d_lU"),
   Emp   = fit_S2("d_lA"))
-
 regtab(s2_models, keep = "^cohort_g",
        out_csv = "output/tables/s2_cohort_long_did.csv",
        out_tex = "output/tables/s2_cohort_long_did.tex",
-       title   = "Long DiD by opening cohort (1961-1991)")
+       title   = "Cohort heterogeneity in long DiD 1961-1991 (NOT staggered)")
 
-# Plot
 cohort_te <- bind_rows(lapply(seq_along(s2_models), function(i) {
   m <- s2_models[[i]]; nm <- names(s2_models)[i]
   tidy_cr(m) %>% filter(grepl("^cohort_g", term)) %>%
@@ -187,23 +223,15 @@ p_s2 <- cohort_te %>%
                                  "Emp" = "#c0392b"),
                       name = NULL) +
   labs(x = "Opening cohort (K7)", y = "1961-1991 effect vs Control",
-       title = "Treatment effect by opening cohort",
-       subtitle = "Long DiD with prov FE + 1961 controls, 95% cluster-robust CI") +
+       title = "Long-DiD heterogeneity by opening cohort",
+       subtitle = "NOT a staggered DiD: census granularity collapses all cohorts into one event-time. Heterogeneity only.") +
   theme_paper()
-
 ggsave("output/figures/fig07_cohort_effects.png", p_s2,
        width = 8, height = 4, dpi = 200)
 ggsave("output/figures/fig07_cohort_effects.pdf", p_s2,
        width = 8, height = 4)
 
-# (NOTE: TMP_60 (ISTAT aree-interne polo travel-time) is intentionally
-#  NOT used as treatment intensity here -- the continuous distance
-#  variable W2 from R/07_accessibility_did.R is the proper distance
-#  measure. TMP_60 is kept only as a heterogeneity stratifier below.)
-
-# ---- (S4) Aree_Int six-band classification --------------------------
-# Same idea using the full ISTAT classification:
-# A=Polo, B=Polo intercom., C=Cintura, D=Intermedio, E=Periferico, F=Ultraperif.
+# ---- (S4) Aree_Int six-band heterogeneity ----------------------------
 wide_ai2 <- wide %>%
   mutate(Aree_Int = factor(Aree_Int,
                            levels = c("F - Ultraperiferico", "E - Periferico",
@@ -222,6 +250,6 @@ s4_models <- list(
 regtab(s4_models, keep = "^Aree_Int",
        out_csv = "output/tables/s4_aree_int_did.csv",
        out_tex = "output/tables/s4_aree_int_did.tex",
-       title   = "Aree-interne six-band DiD (ref = F - Ultraperiferico)")
+       title   = "Aree-interne six-band heterogeneity (ref = F - Ultraperiferico)")
 
 message("[08] Done.")
