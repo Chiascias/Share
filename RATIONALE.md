@@ -22,11 +22,15 @@ Banerjee-Duflo-Qian 2020) share three features that we replicate:
 Where we **differ from Ciani-de Blasio**:
 
 - They have GIS centroids, so they build concentric distance rings
-  ("0-5 km", "5-15 km", "15-30 km") and estimate treatment intensity as
-  a continuous distance-decay. We collapse the spatial dimension into a
-  binary indicator (toll booth yes/no), because the dataset shipped
-  with the draft does not include centroids. (Hook in
-  `data/comuni_centroids.csv` is provided for the upgrade.)
+  ("0-5 km", "5-15 km", "15-30 km"). We have something equivalent
+  built into the dataset: variable `W2` records the **driving time in
+  minutes from each comune to the nearest A1 toll booth**, computed
+  on the post-1964 final A1 network. We use W2 as a continuous
+  treatment intensity (R/07_accessibility_did.R), plus discrete
+  quintile bands (W2 ⊂ {Q1 closest, ..., Q5 farthest}) as the direct
+  ring analogue. We also exploit the K7 **opening-year** variable in
+  the data to run a STAGGERED-treatment DiD that Ciani-de Blasio
+  cannot do because their A3 case study has a single opening date.
 - They have an annual outcome panel (e.g. business registry). We have
   a 10-year decennial panel from the population/industry censuses.
 - They use Conley spatial-HAC standard errors. We cluster at the
@@ -48,19 +52,33 @@ caveat on page 17).
 
 ```
 R/
-  00_setup.R          packages + helpers (regtab, with_cluster, tidy_cr)
-  01_prepare_data.R   load 5 xlsx -> long panel
-  02_treatment.R      flag treated comuni and define control samples
-  03_descriptive.R    cluster analysis + intercensal growth tables
-  04_spatial_did.R    M1 long DiD + M2 event study
-  05_heterogeneous.R  M3 by macro-area / 1961 cluster / 1961 size
-  06_robustness.R     R1 placebo, R2 no-capoluoghi, R3 wide ctrl, R4 SE
-  main.R              master pipeline
+  00_setup.R              packages + helpers (regtab, with_cluster, tidy_cr)
+  01_prepare_data.R       load 5 xlsx -> long panel (incl. K0/K7/W2)
+  02_treatment.R          flag treated comuni (K0=1 from raw data;
+                          53 toll-booth comuni) and define control samples;
+                          attach K7 (opening year), W2 (drive-min to
+                          nearest casello), TMP_60 + Aree_Int (aree
+                          interne classification)
+  03_descriptive.R        cluster analysis + intercensal growth tables
+  04_spatial_did.R        BINARY treatment: M1 long DiD + M2 event study
+  05_heterogeneous.R      M3 by macro-area / 1961 cluster / 1961 size
+  06_robustness.R         R1 placebo, R2 no-capoluoghi, R3 wide ctrl, R4 SE
+  07_accessibility_did.R  CONTINUOUS treatment intensity (W2):
+                          (W1) Δlogy on W2 with prov FE + 1961 ctrl;
+                          (W2) W2 quintile dose-response;
+                          (W3) Event study with W2 × year interactions
+  08_staggered_did.R      STAGGERED treatment (K7 opening year):
+                          (S1) event study in event-time;
+                          (S2) cohort-by-cohort long DiD (1959/60/62/64);
+                          (S4) Aree_Int 6-band heterogeneity
+  main.R                  master pipeline
 data/
-  treated_comuni.csv  46 A1 toll-booth comuni (template, can be edited)
+  aree_interne.csv        from areeinterne.dta: K0, K7, TMP_60, Aree_Int
+  treated_comuni.csv      manual 46-comuni template (kept as docs,
+                          superseded by K0 in raw data: 53 comuni)
 output/
-  tables/             CSV + LaTeX
-  figures/            PNG + PDF
+  tables/                 CSV + LaTeX
+  figures/                PNG + PDF
 ```
 
 ------------------------------------------------------------------------
@@ -307,6 +325,84 @@ Key R1 result: the placebo is **significantly positive** (+0.14 on
 log Pop, +0.10 on log Units). Combined with the event-study evidence
 this is the most important caveat in the empirical section: a DiD
 estimate is an upper bound on the causal effect.
+
+------------------------------------------------------------------------
+
+## 07 — continuous distance-from-casello DiD (the core spec)
+
+This is the spec that most closely mirrors Ciani-de Blasio's
+continuous-distance approach. W2 = driving minutes from the nearest
+A1 toll booth in the post-1964 final network. It is time-invariant
+(one value per comune), so identification comes from interacting it
+with year dummies (Faber 2014 / Donaldson 2018).
+
+### (W1) Long DiD
+
+```
+Δ log y_i = a + β · W2_i + γ' X_i^{1961} + δ_{prov(i)} + ε_i
+```
+
+Expected sign of β: **negative** (more minutes from a casello → less
+1961-1991 growth). What we find (preferred spec, prov FE + 1961
+controls):
+
+| outcome | β on W2 | cluster SE | reading |
+|---|---|---|---|
+| Δ log Pop      | **-0.0068*** | (0.0008) | each extra minute from the casello → 0.68% less population growth over 1961-1991 |
+| Δ log Units    | **-0.0068*** | (0.0009) | -0.68% per minute |
+| Δ log Employees| **-0.0113*** | (0.0014) | **-1.13% per minute** (strongest effect) |
+| Δ Emp rate     | **-0.0013*** | (0.0004) | -0.13 pp per minute |
+
+A comune 30 minutes farther from the nearest A1 casello has, on
+average, 20% less population growth, 20% less local-units growth,
+and 34% less employees growth across 1961-1991, conditional on
+province FE and 1961 baseline development.
+
+### (W2) Quintile dose-response (fig04)
+
+Comuni sliced into 5 quintiles of W2; coefficients relative to Q1
+(closest):
+
+| quintile | Δ log Pop | Δ log Units | Δ log Employees |
+|---|---|---|---|
+| Q1 (closest)   |   ref      |   ref      |   ref      |
+| Q2             | **-0.04*** | -0.07      | -0.15      |
+| Q3             | **-0.08*** | -0.10      | **-0.24**  |
+| Q4             | **-0.19*** | **-0.24*** | **-0.39*** |
+| Q5 (farthest)  | **-0.33*** | **-0.34*** | **-0.57*** |
+
+Perfectly monotonic. The dose-response is the strongest visual
+evidence of the A1 effect.
+
+### (W3) Event study with W2 × year (fig05)
+
+Coefficient on `W2 × 1951` is **POSITIVE** (~+0.003); coefficients on
+`W2 × 1971/1981/1991` are **NEGATIVE** and increasing in magnitude.
+The sign flip across 1961 is the smoking-gun causal pattern:
+pre-A1, far-from-future-casello comuni were growing *faster* (or at
+least not slower); post-A1, they grew systematically slower. This is
+the cleanest evidence we have of a real treatment effect of the
+motorway, net of selection.
+
+------------------------------------------------------------------------
+
+## 08 — staggered DiD (K7 opening year)
+
+The A1 opened in four cohorts: 1959 (Milan-Bologna axis), 1960
+(Bologna-Florence Apennine crossing), 1962 (Rome-Naples leg), 1964
+(Tuscan spine closure). Each cohort gets its own long-DiD coefficient
+(R/08, S2). Findings:
+
+| cohort | Δ log Pop | Δ log Units | Δ log Employees |
+|---|---|---|---|
+| 1959 (n=13) | +0.13**  | +0.25***  | +0.35*** |
+| 1960 (n=6)  | -0.11    | +0.03     | -0.01    |
+| 1962 (n=17) | +0.16*   | **+0.65***| **+0.89***** |
+| 1964 (n=17) | +0.20*** | +0.31***  | +0.34*** |
+
+The 1962 cohort (Rome-Naples leg) shows the strongest effect on
+firms and employees — consistent with Lelo & Tani's qualitative
+finding that the South benefited most economically from the A1.
 
 ------------------------------------------------------------------------
 

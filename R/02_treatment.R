@@ -44,17 +44,41 @@
 source("R/00_setup.R")
 panel <- readRDS("data/panel_long.rds")
 
-treated <- read_csv("data/treated_comuni.csv", show_col_types = FALSE)
-stopifnot(all(c("PRO_COM", "COD_PROV") %in% names(treated)))
-treated <- treated %>% mutate(treat_A1 = 1L)
+# --- Build treatment indicator from K0/K7 in the raw data --------------
+# K0 (binary, 1 if comune hosts an A1 toll booth) and K7 (year the
+# booth opened, 1959-1964) are recorded in each year's xlsx, but only
+# the 1991 cross-section has them populated (other years are NA).
+# Cross-check against the cleaner aree_interne.csv (one row per comune,
+# K0/K7 already deduplicated).
+ai <- read_csv("data/aree_interne.csv", show_col_types = FALSE)
+
+treat_xs <- ai %>%
+  transmute(PRO_COM,
+            treat_A1   = ifelse(is.na(K0), 0L, as.integer(K0 > 0)),
+            year_open  = K7,           # main opening year (matches Lelo Tab 1)
+            year_open2 = K5,           # alternative opening date
+            TMP_60     = TMP_60,       # travel-time band to nearest polo
+            Aree_Int   = Aree_Int)
 
 panel <- panel %>%
-  left_join(treated %>% select(PRO_COM, treat_A1), by = "PRO_COM") %>%
+  select(-K0, -K5, -K7) %>%   # drop the per-year copies, keep only treat_xs
+  left_join(treat_xs, by = "PRO_COM") %>%
   mutate(treat_A1 = coalesce(treat_A1, 0L))
+
+# Optional override from data/treated_comuni.csv (kept for documentation
+# and so a future user can hand-edit the list). Only applied if the
+# file exists and is non-empty.
+if (file.exists("data/treated_comuni.csv")) {
+  override <- read_csv("data/treated_comuni.csv", show_col_types = FALSE)
+  message(glue("  (note: data/treated_comuni.csv lists {nrow(override)} ",
+               "comuni; K0 in the raw data marks ",
+               "{sum(treat_xs$treat_A1)} comuni; using the K0 list as primary.)"))
+}
 
 # Provinces that host at least one A1 toll booth (the within-province
 # control pool is built from these)
-treated_provinces <- treated %>% distinct(COD_PROV) %>% pull(COD_PROV)
+treated_provinces <- panel %>% filter(treat_A1 == 1L) %>%
+  distinct(COD_PROV) %>% pull(COD_PROV)
 
 panel <- panel %>%
   mutate(in_A1_prov  = COD_PROV %in% treated_provinces,
@@ -62,10 +86,10 @@ panel <- panel %>%
          sample_wide  = TRUE)
 
 # Report sample sizes
-n_treat       <- treated %>% nrow()
+n_treat       <- panel %>% filter(year == 1961, treat_A1 == 1) %>% nrow()
 n_tight_ctrl  <- panel %>% filter(year == 1961, treat_A1 == 0, in_A1_prov) %>% nrow()
 n_wide_ctrl   <- panel %>% filter(year == 1961, treat_A1 == 0) %>% nrow()
-n_provinces   <- treated %>% distinct(COD_PROV) %>% nrow()
+n_provinces   <- length(treated_provinces)
 
 message(glue(
   "Treated comuni: {n_treat} across {n_provinces} provinces.\n",

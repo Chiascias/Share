@@ -26,5 +26,7 @@ source("R/03_descriptive.R")
 source("R/04_spatial_did.R")
 source("R/05_heterogeneous.R")
 source("R/06_robustness.R")
+source("R/07_accessibility_did.R")  # continuous-treatment spatial DiD
+source("R/08_staggered_did.R")      # staggered DiD exploiting K7 opening year
 
 message("\n*** Pipeline completed. Outputs in output/tables and output/figures ***")

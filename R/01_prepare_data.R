@@ -40,20 +40,39 @@ read_census <- function(year) {
             L16  = paste0(yy, "_L16"),
             L17  = paste0(yy, "_L17"),
             UT   = paste0(yy, "_UT"),
-            AT   = paste0(yy, "_AT"))
+            AT   = paste0(yy, "_AT"),
+            # A1 toll-booth indicator + opening dates
+            K0   = paste0(yy, "_K0"),
+            K5   = paste0(yy, "_K5"),
+            K7   = paste0(yy, "_K7"),
+            T3   = paste0(yy, "_T3"),
+            # W2 = driving time in minutes to the nearest A1 toll booth
+            # (time-invariant: same values in all year files, computed
+            # on the post-1964 final network)
+            W2   = paste0(yy, "_W2"))
   ucols <- intersect(paste0(yy, "_U", 2:9),       names(raw))
   acols <- intersect(paste0(yy, "_A", 2:9, "_1"), names(raw))
 
+  # Ad_Re = motorway-network accessibility (higher = better access).
+  # 1961 file mis-labels it 51_Ad_Re instead of 61_Ad_Re; we accept
+  # either name and rename uniformly.
+  ad_re_col <- intersect(c(paste0(yy, "_Ad_Re"), "51_Ad_Re"), names(raw))[1]
+
   out <- raw %>%
     select(COD_RIP, COD_REG, COD_PROV, PRO_COM, COMUNE, Shape_Area,
-           any_of(unname(keep)), any_of(c(ucols, acols))) %>%
+           any_of(unname(keep)), any_of(c(ucols, acols, ad_re_col))) %>%
     rename(any_of(keep))
+  if (!is.na(ad_re_col)) {
+    out <- out %>% rename(Ad_Re = !!ad_re_col)
+  } else {
+    out$Ad_Re <- NA_real_
+  }
 
   # Strip year suffix from any leftover sector columns
   names(out) <- sub(paste0("^", yy, "_"), "", names(out))
 
-  # Force numeric on outcome columns (some xlsx cells came in as text)
-  num_cols <- intersect(c("P1","F1","I4","SS4","L15","L16","L17","UT","AT",
+  num_cols <- intersect(c("P1","F1","I4","SS4","L15","L16","L17","UT","AT","Ad_Re",
+                          "K0","K5","K7","W2",
                           paste0("U", 2:9), paste0("A", 2:9, "_1")),
                         names(out))
   out[num_cols] <- lapply(out[num_cols], function(x) suppressWarnings(as.numeric(x)))
