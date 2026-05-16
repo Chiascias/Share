@@ -1,0 +1,13 @@
+row,<ce><94> log Pop,<ce><94> log Units,<ce><94> log Emp
+ringR0 inner (casello),0.4364***,0.6433***,0.9199***
+ringR0 inner (casello)_SE,(0.0840),(0.0606),(0.1574)
+ringR1 0-15 min (donut),0.4301***,0.3641***,0.6449***
+ringR1 0-15 min (donut)_SE,(0.0674),(0.0727),(0.1420)
+ringR2 15-30 min (donut),0.3580***,0.3473***,0.5279***
+ringR2 15-30 min (donut)_SE,(0.0689),(0.0634),(0.1316)
+ringR3 30-45 min (near control),0.2788***,0.2453***,0.3888***
+ringR3 30-45 min (near control)_SE,(0.0566),(0.0529),(0.0959)
+ringR4 45-60 min (control),0.1390**,0.1602*,0.2528*
+ringR4 45-60 min (control)_SE,(0.0675),(0.0845),(0.1302)
+N,1178,1178,1178
+R2,0.466,0.455,0.389
