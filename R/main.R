@@ -24,5 +24,7 @@ source("R/03_csdid.R")
 source("R/04_spatial_rings.R")
 source("R/05_spatial_staggered.R")
 source("R/06_aree_interne.R")
+source("R/07_aree_interne_psm_csdid.R")  # PS-matched CS-DiD, aree interne only
+source("R/08_aree_interne_spatial.R")    # spatial DiD on the matched sample
 
 message("\n*** Pipeline complete. Outputs in output/tables and output/figures ***")
