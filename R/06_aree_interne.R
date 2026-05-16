@@ -36,11 +36,27 @@ source("R/00_setup.R")
 panel <- readRDS("data/panel_long.rds")
 
 # ---- (a) Cross-tab cohort x aree-interne ----------------------------
+# We want to see, for each ISTAT inner-area band, how many comuni were
+# (a) directly treated in cohort A, (b) in cohort B, (c) never treated.
 xt <- panel %>% filter(year == 1991, sample_tight, !is.na(Aree_Int)) %>%
   count(cohort, Aree_Int) %>%
   pivot_wider(names_from = Aree_Int, values_from = n, values_fill = 0)
 write_csv(xt, "output/tables/aree_int_crosstab.csv")
-print(xt)
+print(xt, width = Inf)
+
+# A handy summary collapsing the 6 bands into 3 SNAI groups:
+#   * Polo (A + B)  -- service hubs
+#   * Cintura (C)   -- close to a hub
+#   * Aree interne (D + E + F) -- SNAI 2014 definition
+snai <- panel %>% filter(year == 1991, sample_tight, !is.na(Aree_Int)) %>%
+  mutate(snai = case_when(
+    str_starts(Aree_Int, "A") | str_starts(Aree_Int, "B") ~ "Polo",
+    str_starts(Aree_Int, "C")                              ~ "Cintura",
+    TRUE                                                    ~ "Aree interne (D+E+F)")) %>%
+  count(cohort, snai) %>%
+  pivot_wider(names_from = snai, values_from = n, values_fill = 0)
+write_csv(snai, "output/tables/aree_int_snai_groups.csv")
+print(snai, width = Inf)
 
 # ---- (b) CS-DiD restricted to each aree-interne band ----------------
 att_gt_in_band <- function(panel_df, cohort_lab, pre_year, post_year,

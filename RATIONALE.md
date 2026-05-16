@@ -136,15 +136,68 @@ Crosstab of cohort × aree-interne band at 1991 (n in each cell):
 
 | | A Polo | B Polo intercom | C Cintura | D Intermedio | E Periferico | F Ultraperif |
 |---|---|---|---|---|---|---|
-| Never | 27 | 11 | 628 | 277 | 233 | 47 |
-| Cohort A | 6 | 1 | 8 | 2 | 0 | 0 |
+| Never | 27 | 11 | 628 | 277 | 156 | 22 |
+| Cohort A | 6 | 1 | 8 | 2 | **2** | 0 |
 | Cohort B | 6 | 1 | 16 | 11 | 0 | 0 |
 
-**No A1 casello was placed in a Periferico or Ultraperiferico
-comune** — the network was built across A/B/C/D bands only. This is
-itself a finding: the *Autostrada del Sole spatially bypassed the
-inner-area periphery*. Whatever convergence the motorway delivered, it
-went to comuni that were *already* close to a service hub.
+Collapsed to the **SNAI 2014 strict definition** (D + E + F = aree
+interne):
+
+| | Polo (A+B) | Cintura (C) | Aree interne (D+E+F) |
+|---|---|---|---|
+| Cohort A | 7 | 8 | **4** |
+| Cohort B | 7 | 16 | **11** |
+| Never | 38 | 628 | 455 |
+| **% of cohort treated** | 27% of treated | 45% of treated | **28% of treated** |
+
+So the A1 *did* reach the aree interne — 15 out of 53 toll-booth
+comuni (28%) sit in D+E+F bands. But:
+
+* **Zero F-Ultraperiferico were treated.** The most peripheral comuni
+  of the 8-region panel were entirely bypassed.
+* **Only 2 E-Periferico were treated**, both Apennine pass crossings
+  on the Bologna-Firenze section opened in 1960 (Castiglione dei
+  Pepoli and San Benedetto Val di Sambro). These are pure
+  infrastructure-driven outliers: comuni in the mountains that got a
+  casello because the road *had* to cross there, not because they
+  hosted demand.
+* **13 D-Intermedio treated.** Mostly on the Rome-Naples leg (Cohort
+  B 1962-64): Anagni, Colleferro, Caianello, Pastorano, Ponzano
+  Romano, Fiano Romano, Magliano Sabina, Reggello, Sinalunga,
+  Terranuova Bracciolini, Chiusi, plus 2 in Cohort A 1959-60
+  (Barberino di Mugello, Monzuno).
+
+The policy question becomes: did these few aree-interne comuni
+treated by the A1 *converge* to Polo/Cintura, or stay peripheral
+despite the casello?  Band-by-band ATT 1961-1991 (donut-30, never-
+treated comparison):
+
+| outcome | band | cohort | ATT | n_tr | reading |
+|---|---|---|---|---|---|
+| log Pop | A-Polo | A | **+1.058*** | 6 | Modena/Parma boom |
+| log Pop | C-Cintura | B | **+0.428*** | 16 | Rome suburbanisation |
+| log Pop | **D-Intermedio** | **B** | **+0.248*** | **11** | **inner-area comuni converged** |
+| log Pop | **E-Periferico** | **A** | **-0.172*** | **2** | **mountain pass comuni LOST pop despite casello** |
+| log Units | D-Intermedio | B | +0.419*** | 11 | |
+| log Emp | C-Cintura | A/B | +0.74 / +0.68*** | 8/16 | |
+| log Emp | D-Intermedio | B | +0.464 ns | 11 | |
+| log Emp | E-Periferico | A | -0.084*** | 2 | |
+
+So the policy take-away:
+
+* **D-Intermedio cohort B** (11 Lazio-Apennine comuni on the Roma-
+  Napoli leg): **the casello DID work**. Population grew +25%, local
+  units +42% vs never-treated. Inner-area comuni reached by the A1
+  did converge upward.
+* **E-Periferico cohort A** (Castiglione dei Pepoli, San Benedetto
+  Val di Sambro): **the casello was NOT enough**. These two
+  Apennine-pass comuni still LOST population (-17%) relative to
+  never-treated. Geography and altitude dominated the A1 boost.
+* **F-Ultraperiferico**: never reached by A1 → no ATT estimable.
+  This is the gap SNAI 2014 is trying to close.
+
+Caveat: n=2 in E-Periferico makes the SE tiny by construction. Take
+those numbers qualitatively.
 
 Long-run ATT (1991 vs each cohort's pre-census) by band:
 
