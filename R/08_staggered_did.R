@@ -73,14 +73,24 @@ panel <- panel %>%
     e = ifelse(!is.na(first_post), (year - first_post) / 10, NA_real_)
   )
 
-dat <- panel %>% filter(sample_tight)
+dat_tight   <- panel %>% filter(sample_tight)
+dat_donut30 <- panel %>% filter(sample_donut30)
+dat_donut45 <- panel %>% filter(sample_donut45)
 
-# Inspect grid
-grid <- dat %>%
-  group_by(cohort_census, year) %>%
-  summarise(e_unique = paste(sort(unique(e)), collapse = ","),
-            n = n(), .groups = "drop")
-print(grid)
+# Inspect grid on each sample
+for (lab in c("tight (all near + far)", "donut30 (drop W2<=30)", "donut45 (drop W2<=45)")) {
+  dat <- switch(lab,
+                "tight (all near + far)" = dat_tight,
+                "donut30 (drop W2<=30)" = dat_donut30,
+                "donut45 (drop W2<=45)" = dat_donut45)
+  message(glue("Sample [{lab}]:  n={length(unique(dat$PRO_COM))} comuni  ",
+               "(treated={sum(dat$treat_A1==1 & dat$year==1991)}, ",
+               "control={sum(dat$treat_A1==0 & dat$year==1991)})"))
+}
+# The default sample for everything below is the donut30 (the proper
+# Ciani-de Blasio fix). The tight and donut45 versions are produced
+# below for robustness.
+dat <- dat_donut30
 
 # ---- (T1) TWFE staggered event study ---------------------------------
 # Build event-time dummies E_e * treat. The omitted reference is e=-1
@@ -152,8 +162,75 @@ write_csv(t1_long %>% filter(term != "ref"),
 regtab(t1_models, keep = "^(Em|E)[0-9]",
        out_csv = "output/tables/t1_staggered_event_coefs.csv",
        out_tex = "output/tables/t1_staggered_event_coefs.tex",
-       title   = "Staggered event study (2 census cohorts)")
-message("[08] (T1) TWFE staggered event study done.")
+       title   = "Staggered event study (2 census cohorts, donut-30 sample)")
+message("[08] (T1) TWFE staggered event study done [donut-30].")
+
+# ---- (T1b) Robustness across sample definitions ----------------------
+# Same TWFE staggered event study on the three samples:
+#   tight     -- all same-prov non-treated, no donut
+#   donut30   -- drop controls with W2 <= 30 min (baseline)
+#   donut45   -- drop controls with W2 <= 45 min (conservative)
+#
+# Spillover SUTVA violation predicts: estimated ATT is smaller in
+# `tight` than in `donut30/45`, because the tight control includes
+# spillover-treated comuni that look "treated" too.
+
+run_T1 <- function(dat_x, label) {
+  dat_es <- dat_x %>%
+    mutate(e_int = ifelse(treat_A1 == 1, round(e), NA_real_))
+  for (ee in event_e) {
+    nm <- if (ee < 0) paste0("Em", abs(ee)) else paste0("E", ee)
+    dat_es[[nm]] <- as.integer(!is.na(dat_es$e_int) & dat_es$e_int == ee)
+  }
+  fit <- function(y) {
+    rhs <- c(event_terms, "factor(PRO_COM)", "factor(year)")
+    m <- lm(reformulate(rhs, y), data = dat_es)
+    with_cluster(m, dat_es$COD_PROV, dat_es)
+  }
+  models <- list(`log Pop` = fit("lP1"),
+                 `log Units` = fit("lUT"),
+                 `log Emp`   = fit("lAT"))
+  bind_rows(lapply(seq_along(models), function(i) {
+    m <- models[[i]]; nm <- names(models)[i]
+    td <- tidy_cr(m) %>% filter(term %in% event_terms) %>%
+      mutate(event_time = case_when(term == "Em2" ~ -2, term == "E0" ~ 0,
+                                    term == "E1"  ~  1, term == "E2" ~ 2,
+                                    term == "E3"  ~  3),
+             outcome = nm, sample = label)
+    bind_rows(td,
+              tibble(term="ref", event_time=-1, outcome=nm, sample=label,
+                     estimate=0, std.error=NA, statistic=NA, p.value=NA,
+                     conf.low=0, conf.high=0))
+  }))
+}
+
+robust_long <- bind_rows(
+  run_T1(dat_tight,   "tight (n_ctrl=1141)"),
+  run_T1(dat_donut30, "donut30 (n_ctrl=554)"),
+  run_T1(dat_donut45, "donut45 (n_ctrl=234)"))
+
+p_robust <- robust_long %>%
+  ggplot(aes(x = event_time, y = estimate, ymin = conf.low, ymax = conf.high,
+             colour = sample, group = sample)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_vline(xintercept = -0.5, linetype = "dotted", colour = "#c0392b") +
+  geom_pointrange(position = position_dodge(0.4)) +
+  facet_wrap(~ outcome, scales = "free_y") +
+  scale_colour_manual(values = c("tight (n_ctrl=1141)"   = "grey50",
+                                 "donut30 (n_ctrl=554)"  = "#2c3e50",
+                                 "donut45 (n_ctrl=234)"  = "#c0392b"),
+                      name = NULL) +
+  scale_x_continuous(breaks = -2:3) +
+  labs(x = "Event time (10y periods)", y = "ATT (95% CI)",
+       title = "Donut robustness: staggered ATT(e) across three control samples",
+       subtitle = "tight = no donut; donut30 = drop W2<=30min; donut45 = drop W2<=45min") +
+  theme_paper()
+ggsave("output/figures/fig10_donut_robustness.png", p_robust,
+       width = 11, height = 4.5, dpi = 200)
+ggsave("output/figures/fig10_donut_robustness.pdf", p_robust,
+       width = 11, height = 4.5)
+write_csv(robust_long, "output/tables/t1b_donut_robustness.csv")
+message("[08] (T1b) donut robustness done.")
 
 # ---- (T2) Callaway-Sant'Anna 2x2 ATT(g, t), manual implementation ----
 # For each (g, t) with t >= first_post(g): compute

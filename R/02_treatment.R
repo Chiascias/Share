@@ -83,7 +83,33 @@ treated_provinces <- panel %>% filter(treat_A1 == 1L) %>%
 panel <- panel %>%
   mutate(in_A1_prov  = COD_PROV %in% treated_provinces,
          sample_tight = treat_A1 == 1 | (in_A1_prov & treat_A1 == 0),
-         sample_wide  = TRUE)
+         sample_wide  = TRUE,
+         # Need a comune-level W2 broadcast (W2 in panel is by-year copy;
+         # take first non-NA per comune).
+         W2 = ifelse(is.na(W2), NA_real_, W2))
+
+# Broadcast W2 = single time-invariant value per PRO_COM
+w2_xs <- panel %>% filter(!is.na(W2)) %>%
+  distinct(PRO_COM, W2) %>% group_by(PRO_COM) %>%
+  summarise(W2 = first(W2), .groups = "drop")
+panel <- panel %>% select(-W2) %>% left_join(w2_xs, by = "PRO_COM")
+
+# ---- DONUT samples (Ciani-de Blasio SUTVA fix) -------------------------
+# Drop control comuni that are "too close" to a treated casello to be
+# clean controls -- they receive spillovers (suburbanisation, indotto).
+# We build two donut variants with increasing aggressiveness:
+#   * sample_donut30: drop controls with W2 <= 30 minutes
+#   * sample_donut45: drop controls with W2 <= 45 minutes (conservative)
+#
+# Treated comuni (treat_A1 == 1, all with W2 ~ 0-15 min) are kept in
+# both variants regardless of their own W2.
+panel <- panel %>%
+  mutate(
+    near_casello30 = !is.na(W2) & W2 <= 30 & treat_A1 == 0,
+    near_casello45 = !is.na(W2) & W2 <= 45 & treat_A1 == 0,
+    sample_donut30 = sample_tight & !near_casello30,
+    sample_donut45 = sample_tight & !near_casello45
+  )
 
 # Report sample sizes
 n_treat       <- panel %>% filter(year == 1961, treat_A1 == 1) %>% nrow()
@@ -91,9 +117,16 @@ n_tight_ctrl  <- panel %>% filter(year == 1961, treat_A1 == 0, in_A1_prov) %>% n
 n_wide_ctrl   <- panel %>% filter(year == 1961, treat_A1 == 0) %>% nrow()
 n_provinces   <- length(treated_provinces)
 
+n_donut30_ctrl <- panel %>% filter(year == 1961, treat_A1 == 0,
+                                    sample_donut30) %>% nrow()
+n_donut45_ctrl <- panel %>% filter(year == 1961, treat_A1 == 0,
+                                    sample_donut45) %>% nrow()
+
 message(glue(
   "Treated comuni: {n_treat} across {n_provinces} provinces.\n",
-  "Tight control (same province, no A1):    {n_tight_ctrl}.\n",
-  "Wide  control (all non-treated comuni):  {n_wide_ctrl}."))
+  "Tight    control (same prov, no A1, W2 any):   {n_tight_ctrl}.\n",
+  "Donut-30 control (same prov, no A1, W2 > 30m): {n_donut30_ctrl}.\n",
+  "Donut-45 control (same prov, no A1, W2 > 45m): {n_donut45_ctrl}.\n",
+  "Wide     control (all non-treated comuni):     {n_wide_ctrl}."))
 
 saveRDS(panel, "data/panel_long.rds")

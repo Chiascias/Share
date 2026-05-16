@@ -440,6 +440,53 @@ staggered design correctly absorbs the calendar trend because the
 reference event-time is each cohort's OWN pre-treatment census, not a
 fixed year.
 
+### (T1b) Donut robustness — handling SUTVA violations
+
+A standard concern in spatial DiD: comuni that don't *host* a casello
+but lie within 15-30 minutes' drive of one still benefit through
+spillover (suburbanisation of the casello hub, indotto industriale,
+shared labour-market access). If they're in the control group, the
+DiD coefficient is biased **downward** (controls are partly treated).
+
+W2 distribution in the tight sample:
+
+| group   | n     | W2 median | W2 p90 | W2 max |
+|---------|-------|-----------|--------|--------|
+| Treated (K0=1) | 53 | 8.3 min   | 15.7   | 33.1   |
+| Control        | 1,141 | 29.5 min | 57.8 | 114    |
+
+Of the 1,141 same-province controls, **580 (51%) are within 30 min**
+of a casello — exactly the spillover-treated comuni Ciani-de Blasio
+donut out. We define two donut samples:
+
+| sample      | what it drops                          | n_ctrl |
+|-------------|----------------------------------------|--------|
+| `sample_tight`    | nothing (baseline)              | 1,141 |
+| `sample_donut30`  | controls with W2 ≤ 30 min       | 561   |
+| `sample_donut45`  | controls with W2 ≤ 45 min       | 241   |
+
+Headline staggered ATT(e) (TWFE), comparison at e=+2 ≈ 20 years post:
+
+| outcome | tight | donut30 | donut45 |
+|---|---|---|---|
+| log Pop      | +0.227*** | **+0.352*** (+55%)** | +0.551*** (+143%) |
+| log Units    | +0.346*** | **+0.437*** (+27%)** | +0.590*** (+71%) |
+| log Emp      | +0.391*** | **+0.541*** (+38%)** | +0.723*** (+85%) |
+
+Exactly the SUTVA prediction: ATT grows monotonically as the
+donut excludes more spillover-contaminated comuni.
+
+**Choice of baseline sample**: `donut30` is the sweet-spot. The
+placebo at e=−2 stays non-significant (Pop −0.10 ns, Units −0.02 ns,
+Emp −0.09 ns), so parallel trends still hold. `donut45` pushes
+further but **breaks parallel trends** on population (placebo
+−0.158**, p<0.01), suggesting we've dropped so many controls that
+the remaining ones are not on the same pre-trend as the treated.
+
+We therefore report **donut30 as the preferred specification** in
+the staggered DiD; `tight` and `donut45` are the bounds for
+robustness. See `output/figures/fig10_donut_robustness.png`.
+
 ### (T2) Callaway-Sant'Anna ATT(g,t), manual
 
 For each (cohort × post-census) pair we compute the 2×2 DiD against
