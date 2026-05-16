@@ -1,0 +1,19 @@
+# R artifacts
+.Rproj.user/
+.Rhistory
+.Rdata
+.httr-oauth
+.RDataTmp
+*.Rproj
+
+# OS
+.DS_Store
+__MACOSX/
+
+# Intermediate panel/RDS objects (rebuilt from R/main.R)
+data/panel_long.rds
+data/cluster_1961.rds
+
+# Heavy event-study object (kept in slim form only)
+output/tables/m2_event_study.rds
+output/tables/m1_models.rds

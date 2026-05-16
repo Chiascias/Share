@@ -1,0 +1,47 @@
+PRO_COM,COMUNE,COD_PROV,COD_REG,note
+15054,Casalpusterlengo,15,3,A1 exit (1961 prov Milano)
+15126,Lodi,15,3,A1 exit (1961 prov Milano)
+15140,Melegnano,15,3,A1 exit
+15146,Milano,15,3,A1 origin
+33021,Fiorenzuola d'Arda,33,8,A1 exit
+33032,Piacenza,33,8,A1 exit (Piacenza Nord/Sud)
+34014,Fidenza,34,8,A1 exit
+34027,Parma,34,8,A1 exit
+35033,Reggio nell'Emilia,35,8,A1 exit
+36023,Modena,36,8,A1 exit (Modena Nord/Sud)
+37006,Bologna,37,8,A1 exit (Borgo Panigale/Casalecchio)
+37057,Sasso Marconi,37,8,A1 exit
+48002,Barberino di Mugello,48,9,A1 exit
+48005,Calenzano,48,9,A1 exit (Firenze Nord)
+48017,Firenze,48,9,A1 (Firenze Certosa/Scandicci/Impruneta)
+48022,Impruneta,48,9,A1 exit (Firenze Sud)
+48023,Incisa in Val d'Arno,48,9,A1 exit
+48016,Figline Valdarno,48,9,A1 exit (Valdarno)
+48041,Scandicci,48,9,A1 exit (Firenze Scandicci)
+51002,Arezzo,51,9,A1 exit
+51025,Monte San Savino,51,9,A1 exit
+52033,Sinalunga,52,9,A1 exit (Valdichiana / Bettolle)
+52011,Chiusi,52,9,A1 exit (Chiusi-Chianciano)
+55011,Fabro,55,10,A1 exit
+55023,Orvieto,55,10,A1 exit
+55006,Attigliano,55,10,A1 exit
+56042,Orte,56,12,A1 exit
+57035,Magliano Sabina,57,12,A1 exit
+58080,Ponzano Romano,58,12,A1 exit
+58036,Fiano Romano,58,12,A1 exit (Roma Nord)
+58091,Roma,58,12,A1 (Roma Nord/Sud GRA)
+58079,Pomezia,58,12,A1 exit south of Roma (Roma Sud)
+58024,Castelnuovo di Porto,58,12,A1 exit
+58110,Valmontone,58,12,A1 exit
+58034,Colleferro,58,12,A1 exit
+58119,San Cesareo,58,12,A1 exit (1988 bretella)
+60006,Anagni,60,12,A1 exit
+60038,Frosinone,60,12,A1 exit
+60025,Ceprano,60,12,A1 exit
+60019,Cassino,60,12,A1 exit
+61008,Caianello,61,15,A1 exit
+61015,Capua,61,15,A1 exit
+61022,Caserta,61,15,A1 exit (Caserta Nord/Sud)
+61049,Marcianise,61,15,A1 exit
+63023,Casoria,63,15,A1 exit (Napoli area)
+63049,Napoli,63,15,A1 terminus

@@ -1,0 +1,17 @@
+row,Delta log Population
+factor(profile_1961)industrial,0.3158***
+factor(profile_1961)industrial_SE,(0.0430)
+factor(profile_1961)intermediate/low,-0.0280
+factor(profile_1961)intermediate/low_SE,(0.0780)
+factor(profile_1961)tertiary/educated,0.1796*
+factor(profile_1961)tertiary/educated_SE,(0.0938)
+treat_A1,0.2392***
+treat_A1:factor(profile_1961)industrial,-0.0594
+treat_A1:factor(profile_1961)industrial_SE,(0.1512)
+treat_A1:factor(profile_1961)intermediate/low,-0.2526***
+treat_A1:factor(profile_1961)intermediate/low_SE,(0.0699)
+treat_A1:factor(profile_1961)tertiary/educated,-0.1707*
+treat_A1:factor(profile_1961)tertiary/educated_SE,(0.1018)
+treat_A1_SE,(0.0279)
+N,1194
+R2,0.358

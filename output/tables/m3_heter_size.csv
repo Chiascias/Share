@@ -1,0 +1,17 @@
+row,Delta log Population
+factor(p_quartile)2,0.1443*
+factor(p_quartile)2_SE,(0.0750)
+factor(p_quartile)3,0.2687***
+factor(p_quartile)3_SE,(0.0702)
+factor(p_quartile)4,0.2946***
+factor(p_quartile)4_SE,(0.0869)
+treat_A1,0.1343
+treat_A1:factor(p_quartile)2,0.4519*
+treat_A1:factor(p_quartile)2_SE,(0.2571)
+treat_A1:factor(p_quartile)3,-0.1236
+treat_A1:factor(p_quartile)3_SE,(0.1155)
+treat_A1:factor(p_quartile)4,-0.0439
+treat_A1:factor(p_quartile)4_SE,(0.1127)
+treat_A1_SE,(0.1067)
+N,1194
+R2,0.359

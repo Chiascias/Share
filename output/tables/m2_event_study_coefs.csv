@@ -1,0 +1,17 @@
+outcome,year,estimate,std.error,t,p
+log Population,1951,-0.1204,0.0391,-3.08,0.0021
+log Population,1971,0.1532,0.0404,3.79,2e-4
+log Population,1981,0.1879,0.0721,2.61,0.0092
+log Population,1991,0.1567,0.1012,1.55,0.1214
+log Local units,1951,-0.0962,0.0376,-2.56,0.0105
+log Local units,1971,0.0795,0.0543,1.46,0.1432
+log Local units,1981,0.0683,0.0854,0.8,0.424
+log Local units,1991,0.1836,0.1855,0.99,0.3224
+log Employees,1951,-0.1362,0.0991,-1.38,0.1692
+log Employees,1971,0.0867,0.1239,0.7,0.4839
+log Employees,1981,-0.0064,0.1315,-0.05,0.9609
+log Employees,1991,0.0776,0.212,0.37,0.7144
+Employment rate,1951,-0.0157,0.0095,-1.66,0.097
+Employment rate,1971,0.0053,0.0222,0.24,0.81
+Employment rate,1981,0.0033,0.0235,0.14,0.8883
+Employment rate,1991,9e-4,0.0228,0.04,0.9695
