@@ -386,57 +386,71 @@ motorway, net of selection.
 
 ------------------------------------------------------------------------
 
-## 08 — staggered DiD (a partial implementation)
+## 08 — staggered DiD (2 census cohorts)
 
-**Honesty note.** The A1 opened in four cohorts (K7 = 1959, 1960,
-1962, 1964) — all of which fall in the SAME inter-census window
-1961-1971. At the granularity of the census, the four cohorts share
-an identical event-time mapping (pre = 1961, first observed post =
-1971). A full Callaway-Sant'Anna staggered DiD with cohort-specific
-ATT(t,c) dynamics is therefore NOT identifiable from the
-post-treatment outcomes alone.
+The A1 opened in four years (K7 ∈ {1959, 1960, 1962, 1964}) but at
+the granularity of the decennial census these collapse into **two**
+cohorts with different first-post-treatment census years:
 
-What we CAN do (the only true staggered comparison available with
-this data):
+| cohort | K7 in  | n  | pre census | first post census |
+|---|---|---|---|---|
+| **A** | 1959, 1960    | 19  | 1951 | **1961** |
+| **B** | 1962, 1963, 1964 | 34 | 1961 | **1971** |
+| Never | n.a.          | 1,141 | — | — |
 
-### (T1) Short-run staggered DiD 1951 → 1961
+A and B contribute to **different event-times in the same calendar
+year**, which IS the source of staggered identification:
 
-At the 1961 census the 1959/60 cohorts have been treated for 1-2
-years; the 1962/64 cohorts are still pre-treatment. So:
+| calendar year | event-time, A | event-time, B |
+|---|---|---|
+| 1951 | −1 (ref) | **−2** (placebo) |
+| 1961 | 0    | −1 (ref) |
+| 1971 | +1   | 0    |
+| 1981 | +2   | +1   |
+| 1991 | +3   | +2   |
 
-| group                        | what it is                          | n   |
-|------------------------------|-------------------------------------|-----|
-| **Early** (1959/60)          | treated by 1961                     | 19  |
-| **Late**  (1962/64)          | not yet treated at 1961             | 34  |
-| **Never** (control)          | comuni in A1 prov w/o A1 casello    | 1,141 |
+### (T1) TWFE staggered event study
 
-We estimate `Δy_{51→61} ~ Early + Late + factor(COD_PROV)` and form
-the contrast `ATT_short = b_Early − b_Late`. Findings:
+```
+y_{it} = α_i + λ_t + Σ_{e ≠ −1} β_e · 1{event_time_i = e, treated_i} + ε_{it}
+```
 
-| outcome  | ATT_short | SE       | p     |
-|----------|-----------|----------|-------|
-| Δ log Pop      | +0.045 | (0.039)  | 0.24  |
-| Δ log Units    | **+0.089*** | (0.045)  | **0.046** |
-| Δ log Employees| +0.138 | (0.099)  | 0.16  |
+with `event_time_i = (t − first_post_i)/10` for treated, NA (so all
+dummies are 0) for controls. The year-FE absorbs the common calendar
+trend. Findings (cluster-robust SE, prov-clustered):
 
-After 1-2 years of A1 exposure, the Early cohort already has 9% more
-local-unit growth than the Late cohort (significant). The pop and
-employment differences are positive but imprecise — consistent with
-the literature finding that firms relocate faster than households.
+| event-time | log Pop | log Units | log Employees |
+|---|---|---|---|
+| **−2** (B in 1951, **placebo**) | −0.06 ns | +0.00 ns | −0.04 ns |
+| −1 (ref) | 0 | 0 | 0 |
+| **0** (A in 1961, B in 1971) | **+0.130*** | **+0.131*** | **+0.231*** |
+| +1 (A in 1971, B in 1981) | **+0.236*** | **+0.194*** | **+0.290**  |
+| +2 (A in 1981, B in 1991) | **+0.227*** | **+0.346*** | **+0.391*** |
+| +3 (A in 1991)            | **+0.223**  | **+0.244**  | **+0.265*** |
 
-**Parallel-trends warning**: the `b_Late` coefficient (Late minus
-Never) is itself +0.11 on log Pop and +0.15 on log Emp, both
-significant. This means **the not-yet-treated comuni were already
-on a stronger growth path than the never-treated** before A1
-arrived. Translation: A1 caselli were sited in comuni that were
-already converging upward. The within-cohort `ATT_short` partly
-nets this out (Early and Late share the selection mechanism), but
-the Early-vs-Never comparison overstates the true effect.
+- Placebo at e=−2 **passes** (small, never significant) → parallel
+  trends ok.
+- Immediate effect at e=0: ~13% extra pop, ~13% extra units, ~23%
+  extra employees relative to never-treated.
+- Effect grows monotonically until e=+2 then stabilises.
 
-### (S1) Plain event study on K0 (NOT staggered)
+This is **much cleaner than the M2 calendar-time event study** in
+R/04 (which had pre-trend coefficients of −0.10 in 1951). The
+staggered design correctly absorbs the calendar trend because the
+reference event-time is each cohort's OWN pre-treatment census, not a
+fixed year.
 
-Re-runs the M2 event study from R/04 on the K0=1 sample. Useful as
-robustness comparison with the W2 continuous event study.
+### (T2) Callaway-Sant'Anna ATT(g,t), manual
+
+For each (cohort × post-census) pair we compute the 2×2 DiD against
+never-treated, then aggregate to event-time effects with cohort
+weights. Magnitudes are slightly larger than T1 (long-difference
+rather than TWFE-deviation) but the **pattern is identical**:
+ATT(e=0) positive and significant on all three outcomes, monotonic
+growth through e=+2.
+
+See `output/figures/fig08_staggered_event_study.png` (TWFE) and
+`fig09_cs_event_time.png` (CS 2×2).
 
 ### (S2) Cohort heterogeneity in long DiD (NOT staggered)
 
