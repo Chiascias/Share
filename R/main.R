@@ -27,5 +27,6 @@ source("R/06_aree_interne.R")
 source("R/07_aree_interne_psm_csdid.R")  # PS-matched CS-DiD, aree interne only
 source("R/08_aree_interne_spatial.R")    # spatial DiD on the matched sample
 source("R/09_iv_romita.R")               # Romita 1955 IV (skeleton, needs centroids)
+source("R/10_butts_spillover.R")         # spillover-robust CS-DiD à la Butts 2023
 
 message("\n*** Pipeline complete. Outputs in output/tables and output/figures ***")

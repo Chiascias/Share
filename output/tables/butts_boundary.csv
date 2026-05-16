@@ -1,0 +1,4 @@
+outcome,spillover_boundary
+d log Pop,R4 45-60 min (control)
+d log Units,R3 30-45 min (near control)
+d log Emp,R3 30-45 min (near control)
