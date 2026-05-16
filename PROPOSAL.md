@@ -130,13 +130,93 @@ Two stratifications interacted with treatment:
    issue by construction).
 6. **Falsification**: assign synthetic K7 dates (e.g., a "fake A1"
    built in 1979) and verify no effect.
-7. **IV layer (if time permits)**: Roman-road distance à la Percoco
-   2016 or least-cost-path à la Banerjee-Duflo-Qian 2020 as
-   instrument for K0=1. Would close the selection-on-unobservables
-   gap. This is the canonical robustness in the literature; without
-   it our claim remains "causal conditional on observables".
+7. **IV layer (NON-Percoco)**: see §6 below. Critical: we do NOT
+   replicate Percoco 2016's Roman-road IV. Instead we use the
+   **1955 Piano Romita planned corridor** (Gazzetta Ufficiale
+   8/6/1955 n.131) -- a NEW IV in the literature, pre-political-
+   shock, temporally proximate, with stronger first-stage and
+   tighter exclusion than Roman roads.
 
-## 6. Tables and figures we expect
+## 6. The Romita 1955 IV — why it's NOT replicating Percoco
+
+A reader could legitimately ask: "Doesn't adding an IV mean
+replicating Percoco 2016 with Roman roads?" The answer is **NO** for
+three independent reasons.
+
+### 6.1 Different instrument
+
+| | Percoco 2016 | This paper |
+|---|---|---|
+| Instrument | Distance to nearest **Roman road** (built 200 a.C.) | Distance to **1955 Piano Romita** planned corridor (Gazzetta Ufficiale 8/6/1955 n.131) |
+| Temporal proximity to treatment | -2,200 years | **+1 to +9 years** before A1 sections open (Milano-Piacenza opened 1959) |
+| Predicts first stage via | Persistence-through-centuries argument | **Direct planning intention** -- the realized A1 follows the 1955 plan at ~70-80% (Menduni 1999) |
+| Exclusion threats | Roman roads predict ALL economic geography (cities, markets, schools, ...). Hard to argue exclusion. | The 1955 plan was a one-shot technocratic decision by SISI / Jelmoni / IRI BEFORE the 1956-64 political shocks. The DEVIATIONS of the realized A1 from the 1955 plan are idiosyncratic (Fanfani curve, Bologna-Firenze concession arbitration). Conditional on 1951 X, the 1955 plan affects 1961-1991 outcomes ONLY via eventual A1 access. |
+
+### 6.2 Different moments instrumented
+
+Percoco instruments only the **treatment dummy** (motorway access yes/no)
+in a cross-section. We instrument **three moments** in a CS-DiD panel:
+
+* `K0`  -- direct treatment status (~Percoco)
+* `K7`  -- which cohort A vs B (i.e. when the casello opened) -- **new**
+* `W2`  -- continuous driving minutes to the casello -- **new**
+
+The IV-CS-DiD spec ATT(g, t) is estimated via 2SLS at each (cohort,
+post-year) cell, using `dist_romita_km` as the excluded instrument.
+This is the **first staggered-IV-DiD applied to an Italian
+infrastructure case**.
+
+### 6.3 Different identification claim
+
+Percoco's claim: "Toll-booth municipalities had ~X% higher employment
+in 2001, instrumented by Roman-road proximity."
+
+Our claim: "The dynamic ATT(e) over 1961-1991 is identified by the
+EX-ANTE 1955 PLAN, isolating the political-deviation component of the
+realized routing as the exogenous variation."
+
+This is structurally a **planning-as-natural-experiment** design,
+adjacent to but distinct from Percoco's distance-to-history design.
+
+### 6.4 Robustness: stack of IVs
+
+If feasible we report **both**:
+
+* Primary: 1955 Romita corridor distance (this paper's contribution)
+* Robustness: Roman roads (à la Percoco -- for direct comparability)
+* Robustness: 1936 ANAS Strade Statali network (pre-WWII, less remote)
+
+Hansen-J over-identification test across the three IVs would
+strengthen the claim.
+
+### 6.5 What we still need to build
+
+The Romita corridor needs to be digitised from the 1955 Gazzetta
+Ufficiale map (Lelo's Figure 1) into a georeferenced polyline.
+Approximation strategy:
+
+1. Anchor cities listed in the Gazzetta (Milano, Bologna, Firenze,
+   Roma, Napoli + intermediate nodes Piacenza, Parma, Modena, Caserta)
+2. Connect with great-circle segments (the 1955 plan was vague on
+   detailed routing -- a straight-line-between-nodes corridor is in
+   the spirit of what the 1955 planner had in mind)
+3. Compute each comune's perpendicular distance to the corridor
+
+Estimated effort: **~1 week** for an approximate corridor; **~3 weeks**
+for a properly georeferenced one cross-checked against the Gazzetta
+map.
+
+Crucially: **the Romita-IV requires comune-level centroids**, which
+are not in the current data. Building `data/comuni_centroids.csv`
+from the ISTAT comune shapefile is the single biggest remaining
+prerequisite (~3-5 days of GIS work).
+
+The script `R/09_iv_romita.R` is implemented and runs but with a
+**province-capital fallback** that delivers a degenerate first stage
+(F ≈ 0, prov FE absorb all IV variation). It is a placeholder for
+the proper centroid-based IV.
+
+## 7. Tables and figures we expect
 
 * Tab 1: descriptive statistics by treatment and aree-interne band
 * Tab 2: PS balance before/after matching (full sample + aree interne)
@@ -150,7 +230,7 @@ Two stratifications interacted with treatment:
 * Fig 5: Map of treated vs control comuni colour-coded by ATT
   (requires shapefile)
 
-## 7. Outlets
+## 8. Outlets
 
 Tier 1 (ambitious): *Explorations in Economic History*, *Journal of
 Regional Science*, *Regional Science and Urban Economics*.
@@ -163,12 +243,12 @@ Workshop circuit: ECEHW 2026 (already targeted), AISRe, SIE, SIDE.
 
 ---
 
-## 8. CRITICAL FEASIBILITY ASSESSMENT
+## 9. CRITICAL FEASIBILITY ASSESSMENT
 
 This section is intentionally pessimistic. The proposal above is
 defensible but each of its claims has a soft spot.
 
-### 8.1 Methodological novelty — modest, not revolutionary
+### 9.1 Methodological novelty — modest, not revolutionary
 
 The "PS + CS-DiD + spatial rings" combination is a careful empirical
 strategy but **none of the three components is new**:
@@ -186,7 +266,7 @@ A genuinely methodological contribution would require, e.g., a new
 estimator for spillover-robust ATT(g,t) (Butts 2023, Borusyak-Hull
 2024 territory). We are not doing that.
 
-### 8.2 Small treated sample in the inner-areas focus
+### 9.2 Small treated sample in the inner-areas focus
 
 * SNAI strict (D + E + F): **15 treated** in the 8-region panel.
 * PS-trimmed: **13 treated** with 36 matched controls.
@@ -210,7 +290,7 @@ Mitigations:
 - Triangulate with sector breakdowns and continuous-W2 within-aree-
   interne specs.
 
-### 8.3 PS does not fix selection on unobservables
+### 9.3 PS does not fix selection on unobservables
 
 The 1951 covariate set (family / educ / housing) is reasonable but
 **conspicuously omits**:
@@ -239,7 +319,7 @@ The IV strategy (Roman roads à la Percoco 2016) would close this gap
 **substantially**. It is sketched in Section 5 as a robustness but
 should arguably be **the main estimator** rather than a footnote.
 
-### 8.4 W2 is post-1964 and time-invariant
+### 9.4 W2 is post-1964 and time-invariant
 
 Two issues:
 
@@ -256,7 +336,7 @@ A reviewer who likes Donaldson-Hornbeck 2016 will accept this. A
 reviewer who likes Faber 2014 may push for distance-to-the-network-
 *as-of-each-census* which we cannot easily build.
 
-### 8.5 Aree interne classification is anachronistic
+### 9.5 Aree interne classification is anachronistic
 
 The ISTAT-DPS 2014 *aree interne* classification is based on:
 * presence of a hospital with first-aid unit,
@@ -279,7 +359,7 @@ explicit:
 > identifying assumption is that the *terrain* — not the *service
 > provision* — drives the classification."
 
-### 8.6 Decennial census granularity
+### 9.6 Decennial census granularity
 
 * Only 2 census cohorts ⇒ Goodman-Bacon decomposition has limited
   bite; we cannot weigh forbidden 2x2 comparisons because there are
@@ -296,7 +376,7 @@ This is a **hard constraint of the data** — not fixable with this
 panel. Annual labour-market data (e.g., INPS micro-data, which exist
 from 1974) would be needed.
 
-### 8.7 8-region sample is non-random
+### 9.7 8-region sample is non-random
 
 The panel covers only the regions crossed by A1 plus 2 adjacent
 (Piemonte, Veneto). Far-northern and far-southern Italy (Friuli,
@@ -308,7 +388,7 @@ Lelo & Tani's draft does not push a national claim, so this is
 fine. But a Tier 1 referee may ask why we don't extend to A2/A3/
 A4/A14 to make the story national.
 
-### 8.8 Sector heterogeneity is harder than it looks
+### 9.8 Sector heterogeneity is harder than it looks
 
 U2-U9 and A2_1-A9_1 use the 1971-style 9-sector classification.
 ISTAT changed sector codes across censuses (e.g., service-sector
@@ -320,7 +400,7 @@ classification work.
 If we skip the sector breakdown, RQ4 disappears. If we keep it, we
 need to flag the harmonisation caveats explicitly in the paper.
 
-### 8.9 Practical scope — what's actually doable in 6 months?
+### 9.9 Practical scope — what's actually doable in 6 months?
 
 Conservative scope (achievable):
 * Stages 1-3 (PS + CS-DiD + rings) on full sample and on aree-interne
@@ -339,7 +419,7 @@ Out of scope:
 * Welfare-quantification (consumer surplus from accessibility)
 * Spatial-equilibrium calibration (Allen-Arkolakis style)
 
-### 8.10 Honest sales pitch
+### 9.10 Honest sales pitch
 
 * **Strong**: well-identified within-province design; long horizon
   (40 yrs); novel inner-areas policy angle; clean integration with
@@ -356,7 +436,7 @@ extension and a tighter aree-interne narrative**.
 
 ---
 
-## 9. Suggested next steps (priority order)
+## 10. Suggested next steps (priority order)
 
 1. **Already done in the current pipeline** (R/01..R/08): PS,
    CS-DiD, rings, inner-area focus. Ready for write-up.

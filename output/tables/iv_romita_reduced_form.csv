@@ -1,0 +1,5 @@
+row,d log Pop,d log Units,d log Emp
+dist_romita_km,-0.0137,-0.0037,-0.0127
+dist_romita_km_SE,(0.0092),(0.0137),(0.0192)
+N,1194,1193,1193
+R2,0.411,0.422,0.353
