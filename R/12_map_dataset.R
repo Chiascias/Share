@@ -1,202 +1,287 @@
 # =====================================================================
-# 12_map_dataset.R  --  map of the comuni in the 1951 dataset
+# 12_map_dataset.R  --  CLEAN province-polygon map of the sample
 # =====================================================================
 #
-# Purpose: visualise the geographic scope of the analysis sample so
-# the reader can see immediately:
-#   * which regions the panel covers (8 out of 20 Italian regions)
-#   * which provinces host A1 toll booths (16 provinces)
-#   * where the 53 treated comuni are located along the A1 spine
+# Replaces the earlier jittered-point version. Uses the `maps` package
+# Italian province shapes to draw a proper choropleth-style map showing:
 #
-# Because we do NOT yet have comune-level centroids from the ISTAT
-# shapefile, we use province-capital coordinates as a coarse proxy
-# (hardcoded in R/09_iv_romita.R). For the all-comuni dot we plot a
-# small jitter around the province capital so the visual density
-# reflects the number of comuni per province.
+#   (i)  which provinces are in the analysis sample (any of 41)
+#   (ii) which provinces host an A1 toll booth (16 of 41)
+#   (iii) treated comuni overlaid as points (using province capital
+#         coordinates, no random jitter)
 
 source("R/00_setup.R")
 suppressPackageStartupMessages({
-  library(sf); library(rnaturalearthdata)
+  library(sf)
+  library(maps)
+  library(rnaturalearthdata)
 })
 
 panel <- readRDS("data/panel_long.rds")
 
-# ---- 1. Italy outline ------------------------------------------------
-data("countries50")
-italy <- countries50[countries50$sovereignt == "Italy", ]
-italy_sf <- st_as_sf(italy)
+# ---- 1. Italian provinces from `maps` --------------------------------
+italy_map <- maps::map("italy", plot = FALSE, fill = TRUE)
+italy_sf <- st_as_sf(italy_map)
+# Collapse "Venezia:Lido" etc. onto the primary province name
+italy_sf$prov <- sub(":.*$", "", italy_sf$ID)
+italy_sf <- italy_sf %>%
+  group_by(prov) %>%
+  summarise(geometry = sf::st_union(geom), .groups = "drop")
+italy_sf <- st_make_valid(italy_sf)
 
-# Bounding box around 8-region sample (approx)
-bbox <- c(xmin = 6.5, xmax = 16.5, ymin = 38.5, ymax = 47.5)
+# ---- 2. Province coordinates -> COD_PROV crosswalk -------------------
+# Cross-reference province names (italian) with ISTAT province codes
+# used in our panel. Only need the 41 provinces in the sample.
+prov_xwalk <- tribble(
+  ~COD_PROV, ~prov_name_maps,
+   3, "Cuneo",          6, "Alessandria",
+  12, "Varese",        13, "Como",       14, "Sondrio",
+  15, "Milano",        16, "Bergamo",    17, "Brescia",
+  18, "Pavia",         19, "Cremona",    20, "Mantova",
+  23, "Venezia",       28, "Padova",     29, "Verona",
+  33, "Piacenza",      34, "Parma",
+  35, "Reggio Emilia",   36, "Modena",     37, "Bologna",
+  38, "Ferrara",       39, "Ravenna",    40, "Forli'",
+  45, "Massa-Carrara", 46, "Lucca",      47, "Pistoia",
+  48, "Firenze",       49, "Livorno",    50, "Pisa",
+  51, "Arezzo",        52, "Siena",      53, "Grosseto",
+  54, "Perugia",       55, "Terni",
+  56, "Viterbo",       57, "Rieti",      58, "Roma",
+  59, "Latina",        60, "Frosinone",
+  61, "Caserta",       62, "Benevento",  63, "Napoli",
+  64, "Avellino",      65, "Salerno")
 
-# ---- 2. Province-capital coordinates (hardcoded) ---------------------
-province_caps <- tibble::tribble(
-  ~COD_PROV, ~lon,    ~lat,    ~name,
-   6,         8.6126,  44.9136, "Alessandria",
-  12,         8.8252, 45.8205,  "Varese",
-  13,         9.0832, 45.8081,  "Como",
-  14,         9.8755, 46.1700,  "Sondrio",
-  15,         9.1900, 45.4640,  "Milano",
-  16,         9.6671, 45.6982,  "Bergamo",
-  17,        10.2185, 45.5416,  "Brescia",
-  18,         9.5045, 45.3107,  "Pavia",
-  19,        10.0282, 45.1335,  "Cremona",
-  20,        10.7914, 45.1564,  "Mantova",
-  23,        12.3155, 45.4408,  "Venezia",
-  28,        11.8767, 45.4064,  "Padova",
-  29,        11.0049, 45.4385,  "Verona",
-  33,         9.6921, 45.0526,  "Piacenza",
-  34,        10.3279, 44.8015,  "Parma",
-  35,        10.6315, 44.6989,  "Reggio Emilia",
-  36,        10.9252, 44.6471,  "Modena",
-  37,        11.3426, 44.4949,  "Bologna",
-  38,        11.6168, 44.8381,  "Ferrara",
-  39,        12.2017, 44.4173,  "Ravenna",
-  40,        12.5683, 44.0678,  "Forli",
-  45,         9.8264, 44.1024,  "Massa-Carrara",
-  46,        10.5036, 43.8430,  "Lucca",
-  47,        10.4030, 43.7228,  "Pistoia",
-  48,        11.2558, 43.7696,  "Firenze",
-  49,        10.4017, 43.7228,  "Livorno",
-  50,        10.4017, 43.7228,  "Pisa",
-  51,        11.8807, 43.4632,  "Arezzo",
-  52,        11.3309, 43.3188,  "Siena",
-  53,        11.1167, 42.7726,  "Grosseto",
-  54,        12.3886, 43.1107,  "Perugia",
-  55,        12.6448, 42.5636,  "Terni",
-  56,        12.1042, 42.4174,  "Viterbo",
-  57,        12.8593, 42.4040,  "Rieti",
-  58,        12.4964, 41.9028,  "Roma",
-  59,        12.9024, 41.4671,  "Latina",
-  60,        13.3500, 41.6396,  "Frosinone",
-  61,        14.3320, 41.0723,  "Caserta",
-  62,        14.7821, 41.1297,  "Benevento",
-  63,        14.2681, 40.8518,  "Napoli",
-  64,        14.7659, 40.9145,  "Avellino",
-  65,        14.7659, 40.6824,  "Salerno")
+# ---- 3. Province categorisation --------------------------------------
+provs_in_sample <- panel %>% filter(year == 1951) %>%
+  distinct(COD_PROV) %>% pull(COD_PROV)
+treated_provs <- panel %>% filter(treat_A1 == 1) %>%
+  distinct(COD_PROV) %>% pull(COD_PROV)
 
-# ---- 3. Tag each comune with its province capital coords + jitter ---
-set.seed(42)
-xs <- panel %>% filter(year == 1951) %>%
-  distinct(PRO_COM, COD_PROV, COD_REG, treat_A1, cohort, COMUNE) %>%
-  left_join(province_caps, by = "COD_PROV") %>%
-  filter(!is.na(lon)) %>%
-  mutate(lon_j = lon + rnorm(n(), 0, 0.10),
-         lat_j = lat + rnorm(n(), 0, 0.08))
-
-cat("Comuni mapped to province coords: ", nrow(xs), "\n")
-cat("By treatment status:\n")
-print(xs %>% count(treat_A1))
-cat("By region:\n")
-print(xs %>% count(COD_REG, name = "n_comuni"))
-
-# ---- 4. Region labels for the legend ---------------------------------
-region_labels <- c("1" = "Piemonte (1)",
-                   "3" = "Lombardia (3)",
-                   "5" = "Veneto (5)",
-                   "8" = "Emilia-Romagna (8)",
-                   "9" = "Toscana (9)",
-                   "10" = "Umbria (10)",
-                   "12" = "Lazio (12)",
-                   "15" = "Campania (15)")
-xs <- xs %>% mutate(region = region_labels[as.character(COD_REG)])
-
-# ---- 5. Map A: all comuni in the 1951 dataset, by region ------------
-p_A <- ggplot() +
-  geom_sf(data = italy_sf, fill = "grey95", colour = "grey60", linewidth = 0.3) +
-  geom_point(data = xs %>% filter(treat_A1 == 0),
-             aes(x = lon_j, y = lat_j, colour = region),
-             alpha = 0.35, size = 0.6) +
-  geom_point(data = xs %>% filter(treat_A1 == 1),
-             aes(x = lon_j, y = lat_j),
-             colour = "black", fill = "#c0392b", shape = 21,
-             size = 2, stroke = 0.4) +
-  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
-           ylim = c(bbox["ymin"], bbox["ymax"]),
-           expand = FALSE) +
-  scale_colour_brewer(palette = "Set2", name = "Regione") +
-  labs(title = "Comuni nel campione (n = 3.242, 8 regioni)",
-       subtitle = "Punti grigio-colorati: 3.189 comuni non trattati. Punti rossi: 53 comuni con casello A1.",
-       x = NULL, y = NULL,
-       caption = "Coordinate approssimate (capoluogo di provincia con jitter casuale)") +
-  theme_paper() +
-  theme(panel.background = element_rect(fill = "white"),
-        legend.position = "right")
-
-ggsave("output/figures/fig_map_01_dataset.png", p_A,
-       width = 8, height = 9, dpi = 200)
-ggsave("output/figures/fig_map_01_dataset.pdf", p_A, width = 8, height = 9)
-
-# ---- 6. Map B: treated provinces highlighted ------------------------
-treated_provs <- xs %>% filter(treat_A1 == 1) %>% distinct(COD_PROV) %>% pull(COD_PROV)
-prov_in_sample <- xs %>% distinct(COD_PROV) %>% pull(COD_PROV)
-caps_in_sample <- province_caps %>% filter(COD_PROV %in% prov_in_sample) %>%
-  mutate(treat_prov = COD_PROV %in% treated_provs)
-
-p_B <- ggplot() +
-  geom_sf(data = italy_sf, fill = "grey95", colour = "grey60", linewidth = 0.3) +
-  geom_point(data = caps_in_sample,
-             aes(x = lon, y = lat, colour = treat_prov, size = treat_prov)) +
-  geom_text(data = caps_in_sample %>% filter(treat_prov),
-            aes(x = lon, y = lat, label = name),
-            hjust = -0.15, vjust = 0.5, size = 2.8, colour = "#c0392b") +
-  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
-           ylim = c(bbox["ymin"], bbox["ymax"]),
-           expand = FALSE) +
-  scale_colour_manual(values = c("TRUE" = "#c0392b", "FALSE" = "grey60"),
-                      labels = c("FALSE" = "Provincia nel campione, no A1",
-                                 "TRUE"  = "Provincia con casello A1 (n=16)"),
-                      name = NULL) +
-  scale_size_manual(values = c("TRUE" = 3.2, "FALSE" = 1.5), guide = "none") +
-  labs(title = "Province nel campione (n = 41) e province con A1 (n = 16)",
-       subtitle = "Le 16 province con almeno un casello A1 sono il dominio del confronto within-province",
-       x = NULL, y = NULL) +
-  theme_paper() +
-  theme(panel.background = element_rect(fill = "white"))
-ggsave("output/figures/fig_map_02_treated_provinces.png", p_B,
-       width = 8, height = 9, dpi = 200)
-ggsave("output/figures/fig_map_02_treated_provinces.pdf", p_B, width = 8, height = 9)
-
-# ---- 7. Map C: treated comuni only with cohort labels ---------------
-treated_comuni <- xs %>% filter(treat_A1 == 1)
-p_C <- ggplot() +
-  geom_sf(data = italy_sf, fill = "grey95", colour = "grey60", linewidth = 0.3) +
-  geom_point(data = caps_in_sample %>% filter(treat_prov),
-             aes(x = lon, y = lat),
-             colour = "grey80", size = 5, alpha = 0.5) +
-  geom_point(data = treated_comuni,
-             aes(x = lon_j, y = lat_j, colour = cohort, shape = cohort),
-             size = 3, stroke = 0.5) +
-  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
-           ylim = c(bbox["ymin"], bbox["ymax"]),
-           expand = FALSE) +
-  scale_colour_manual(values = c("A" = "#16a085", "B" = "#c0392b"),
-                      labels = c("A" = "Coorte A (K7 1959-60, n=19)",
-                                 "B" = "Coorte B (K7 1962-64, n=34)"),
-                      name = "Coorte di apertura") +
-  scale_shape_manual(values = c("A" = 16, "B" = 17),
-                     labels = c("A" = "Coorte A (K7 1959-60, n=19)",
-                                "B" = "Coorte B (K7 1962-64, n=34)"),
-                     name = "Coorte di apertura") +
-  labs(title = "I 53 comuni con casello A1, per coorte di apertura",
-       subtitle = "Coorte A: caselli aperti 1959-60 (Milano-Bologna axis). Coorte B: aperti 1962-64 (Bologna-Firenze passes + Roma-Napoli).",
-       x = NULL, y = NULL,
-       caption = "Cerchi grigi sullo sfondo: capoluoghi delle 16 province trattate.") +
-  theme_paper() +
-  theme(panel.background = element_rect(fill = "white"))
-ggsave("output/figures/fig_map_03_treated_comuni.png", p_C,
-       width = 8, height = 9, dpi = 200)
-ggsave("output/figures/fig_map_03_treated_comuni.pdf", p_C, width = 8, height = 9)
-
-# ---- 8. Summary table of sample composition --------------------------
-summary_tab <- xs %>% group_by(region) %>%
+# Counts per province
+prov_counts <- panel %>% filter(year == 1951) %>%
+  group_by(COD_PROV) %>%
   summarise(n_comuni = n(),
             n_treated = sum(treat_A1 == 1),
-            n_control = sum(treat_A1 == 0),
-            n_provinces = n_distinct(COD_PROV),
-            .groups = "drop") %>%
-  arrange(desc(n_comuni))
-print(summary_tab)
-write_csv(summary_tab, "output/tables/dataset_sample_by_region.csv")
+            .groups = "drop")
 
-message("[12] Done.  3 maps + summary table saved.")
+italy_status <- italy_sf %>%
+  left_join(prov_xwalk %>% rename(prov = prov_name_maps), by = c("prov" = "prov")) %>%
+  left_join(prov_counts, by = "COD_PROV") %>%
+  mutate(status = case_when(
+    is.na(COD_PROV)                       ~ "Non nel campione",
+    COD_PROV %in% treated_provs            ~ "Provincia con casello A1",
+    COD_PROV %in% provs_in_sample          ~ "Provincia nel campione, no A1",
+    TRUE                                   ~ "Non nel campione"),
+    status = factor(status, levels = c("Non nel campione",
+                                       "Provincia nel campione, no A1",
+                                       "Provincia con casello A1")))
+
+# Check unmatched provinces (could be name spelling mismatches)
+unmatched <- prov_xwalk %>%
+  anti_join(italy_sf %>% st_drop_geometry(), by = c("prov_name_maps" = "prov"))
+if (nrow(unmatched) > 0) {
+  message("WARNING: provinces not found in maps data:")
+  print(unmatched)
+}
+
+# Province capital coordinates (for labels and treated-comune points)
+prov_caps <- tribble(
+  ~COD_PROV, ~cap_name,             ~lon,     ~lat,
+   3, "Cuneo",                       7.5429,  44.3841,
+   6, "Alessandria",                 8.6126,  44.9136,
+  12, "Varese",                      8.8252,  45.8205,
+  13, "Como",                        9.0832,  45.8081,
+  14, "Sondrio",                     9.8755,  46.1700,
+  15, "Milano",                      9.1900,  45.4640,
+  16, "Bergamo",                     9.6671,  45.6982,
+  17, "Brescia",                    10.2185,  45.5416,
+  18, "Pavia",                       9.1561,  45.1847,
+  19, "Cremona",                    10.0282,  45.1335,
+  20, "Mantova",                    10.7914,  45.1564,
+  23, "Venezia",                    12.3155,  45.4408,
+  28, "Padova",                     11.8767,  45.4064,
+  29, "Verona",                     11.0049,  45.4385,
+  33, "Piacenza",                    9.6921,  45.0526,
+  34, "Parma",                      10.3279,  44.8015,
+  35, "Reggio Emilia",              10.6315,  44.6989,
+  36, "Modena",                     10.9252,  44.6471,
+  37, "Bologna",                    11.3426,  44.4949,
+  38, "Ferrara",                    11.6168,  44.8381,
+  39, "Ravenna",                    12.2017,  44.4173,
+  40, "Forlì",                      12.0407,  44.2226,
+  45, "Massa-Carrara",               9.8264,  44.1024,
+  46, "Lucca",                      10.5036,  43.8430,
+  47, "Pistoia",                    10.9176,  43.9335,
+  48, "Firenze",                    11.2558,  43.7696,
+  49, "Livorno",                    10.3094,  43.5485,
+  50, "Pisa",                       10.4017,  43.7228,
+  51, "Arezzo",                     11.8807,  43.4632,
+  52, "Siena",                      11.3309,  43.3188,
+  53, "Grosseto",                   11.1167,  42.7726,
+  54, "Perugia",                    12.3886,  43.1107,
+  55, "Terni",                      12.6448,  42.5636,
+  56, "Viterbo",                    12.1042,  42.4174,
+  57, "Rieti",                      12.8593,  42.4040,
+  58, "Roma",                       12.4964,  41.9028,
+  59, "Latina",                     12.9024,  41.4671,
+  60, "Frosinone",                  13.3500,  41.6396,
+  61, "Caserta",                    14.3320,  41.0723,
+  62, "Benevento",                  14.7821,  41.1297,
+  63, "Napoli",                     14.2681,  40.8518,
+  64, "Avellino",                   14.7889,  40.9145,
+  65, "Salerno",                    14.7659,  40.6824)
+
+# Treated comune coordinates: use the province capital of the comune
+# (without jitter, just placed on the capital — coarse but clean)
+treated_comuni_pts <- panel %>% filter(treat_A1 == 1, year == 1991) %>%
+  distinct(PRO_COM, COMUNE, COD_PROV, cohort) %>%
+  left_join(prov_caps, by = "COD_PROV") %>%
+  # Add a small deterministic offset by sequence within province so
+  # multiple treated in the same province don't fully overlap
+  group_by(COD_PROV) %>%
+  mutate(rank = row_number(),
+         angle = (rank - 1) * pi/3,
+         lon_p = lon + cos(angle) * 0.08,
+         lat_p = lat + sin(angle) * 0.06) %>%
+  ungroup()
+
+# Bounding box of the sample
+bbox <- c(xmin = 6.5, xmax = 16.5, ymin = 38.5, ymax = 47.5)
+
+# ---- 4. MAP A — province choropleth ----------------------------------
+p_A <- ggplot() +
+  geom_sf(data = italy_status,
+          aes(fill = status),
+          colour = "grey50", linewidth = 0.18) +
+  scale_fill_manual(
+    values = c("Non nel campione"                = "grey92",
+               "Provincia nel campione, no A1"   = "#a6cee3",
+               "Provincia con casello A1"        = "#e31a1c"),
+    name = NULL,
+    drop = FALSE) +
+  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
+           ylim = c(bbox["ymin"], bbox["ymax"]),
+           expand = FALSE) +
+  labs(title = "Province italiane nel campione di analisi",
+       subtitle = "41 province (di cui 16 con casello A1) su 6 regioni attraversate dall'A1 + 2 buffer (Piemonte, Veneto)",
+       caption = "Fonte: ISTAT Ottomila + database caselli A1 (Lelo & Tani 2026).",
+       x = NULL, y = NULL) +
+  theme_paper() +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank(),
+        legend.position = "right",
+        legend.text = element_text(size = 10))
+
+ggsave("output/figures/fig_map_01_provinces.png", p_A,
+       width = 9, height = 10, dpi = 220)
+ggsave("output/figures/fig_map_01_provinces.pdf", p_A,
+       width = 9, height = 10)
+
+# ---- 5. MAP B — choropleth + treated province names ------------------
+treated_caps <- prov_caps %>% filter(COD_PROV %in% treated_provs)
+p_B <- ggplot() +
+  geom_sf(data = italy_status, aes(fill = status),
+          colour = "grey50", linewidth = 0.18) +
+  scale_fill_manual(
+    values = c("Non nel campione"                = "grey92",
+               "Provincia nel campione, no A1"   = "#cfe2f3",
+               "Provincia con casello A1"        = "#fdcdb9"),
+    name = NULL, drop = FALSE) +
+  geom_point(data = treated_caps,
+             aes(x = lon, y = lat),
+             colour = "#a50f15", size = 2.4) +
+  ggrepel::geom_text_repel(
+    data = treated_caps,
+    aes(x = lon, y = lat, label = cap_name),
+    size = 3.1, colour = "#a50f15", fontface = "bold",
+    box.padding = 0.3, point.padding = 0.2,
+    segment.colour = "grey60", segment.size = 0.3,
+    max.overlaps = Inf, seed = 42) +
+  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
+           ylim = c(bbox["ymin"], bbox["ymax"]),
+           expand = FALSE) +
+  labs(title = "Le 16 province con casello A1",
+       subtitle = "Capoluoghi etichettati. Le altre 25 province del campione (azzurro) servono come controllo within-corridor.",
+       x = NULL, y = NULL) +
+  theme_paper() +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 10))
+
+# Fall back if ggrepel not available
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  p_B <- ggplot() +
+    geom_sf(data = italy_status, aes(fill = status),
+            colour = "grey50", linewidth = 0.18) +
+    scale_fill_manual(
+      values = c("Non nel campione"                = "grey92",
+                 "Provincia nel campione, no A1"   = "#cfe2f3",
+                 "Provincia con casello A1"        = "#fdcdb9"),
+      name = NULL, drop = FALSE) +
+    geom_point(data = treated_caps, aes(x = lon, y = lat),
+               colour = "#a50f15", size = 2.4) +
+    geom_text(data = treated_caps,
+              aes(x = lon, y = lat, label = cap_name),
+              size = 2.8, colour = "#a50f15", fontface = "bold",
+              hjust = -0.15, vjust = 0.5) +
+    coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
+             ylim = c(bbox["ymin"], bbox["ymax"]),
+             expand = FALSE) +
+    labs(title = "Le 16 province con casello A1",
+         subtitle = "Capoluoghi etichettati. Le altre 25 province del campione (azzurro) servono come controllo within-corridor.",
+         x = NULL, y = NULL) +
+    theme_paper() +
+    theme(panel.background = element_rect(fill = "white"),
+          panel.grid = element_blank(),
+          legend.position = "bottom")
+}
+ggsave("output/figures/fig_map_02_treated_provinces.png", p_B,
+       width = 9, height = 10, dpi = 220)
+ggsave("output/figures/fig_map_02_treated_provinces.pdf", p_B,
+       width = 9, height = 10)
+
+# ---- 6. MAP C — treated comuni overlay, per cohort ------------------
+p_C <- ggplot() +
+  geom_sf(data = italy_status, aes(fill = status),
+          colour = "grey60", linewidth = 0.18) +
+  scale_fill_manual(
+    values = c("Non nel campione"                = "grey95",
+               "Provincia nel campione, no A1"   = "white",
+               "Provincia con casello A1"        = "#fff5e6"),
+    name = NULL, drop = FALSE, guide = "none") +
+  geom_point(data = treated_comuni_pts,
+             aes(x = lon_p, y = lat_p, colour = cohort, shape = cohort),
+             size = 2.5, stroke = 0.7) +
+  scale_colour_manual(
+    values = c("A" = "#1b9e77", "B" = "#d95f02"),
+    labels = c("A" = "Coorte A (K7 1959-60, n=19)",
+               "B" = "Coorte B (K7 1962-64, n=34)"),
+    name = "Coorte di apertura") +
+  scale_shape_manual(
+    values = c("A" = 16, "B" = 17),
+    labels = c("A" = "Coorte A (K7 1959-60, n=19)",
+               "B" = "Coorte B (K7 1962-64, n=34)"),
+    name = "Coorte di apertura") +
+  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]),
+           ylim = c(bbox["ymin"], bbox["ymax"]),
+           expand = FALSE) +
+  labs(title = "I 53 comuni con casello A1, per coorte di apertura",
+       subtitle = "Coorte A (verde): Milano-Bologna axis, 1959-60.  Coorte B (arancio): Bologna-Firenze + Roma-Napoli, 1962-64.",
+       caption = "Punti posizionati approssimativamente sul capoluogo provinciale (per multipli trattati: leggero offset deterministico).",
+       x = NULL, y = NULL) +
+  theme_paper() +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 10))
+ggsave("output/figures/fig_map_03_treated_comuni.png", p_C,
+       width = 9, height = 10, dpi = 220)
+ggsave("output/figures/fig_map_03_treated_comuni.pdf", p_C,
+       width = 9, height = 10)
+
+# Drop the old cluttered fig_map_01_dataset
+file.remove("output/figures/fig_map_01_dataset.png")
+file.remove("output/figures/fig_map_01_dataset.pdf")
+
+message("[12] Done.  3 clean province-polygon maps saved.")
