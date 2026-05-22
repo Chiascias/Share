@@ -1,0 +1,9 @@
+region,n_comuni,n_treated,n_control,n_provinces
+Lombardia (3),1544,5,1539,9
+Campania (15),551,6,545,5
+Lazio (12),376,15,361,5
+Emilia-Romagna (8),341,12,329,8
+Toscana (9),287,12,275,9
+Umbria (10),92,3,89,2
+Veneto (5),28,0,28,3
+Piemonte (1),11,0,11,1

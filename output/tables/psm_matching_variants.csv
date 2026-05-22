@@ -1,0 +1,8 @@
+method,n_treated,n_control,n_matched_total,max_abs_SMD
+M1 - 1:1 NN with replacement,50,45,95,0.557
+M2 - 1:1 NN without replacement,50,50,100,0.526
+M3 - 1:3 NN with replacement,50,125,175,0.163
+M4 - 1:5 NN with replacement,50,192,242,0.204
+"M5 - 1:1 NN, caliper 0.25 SD",48,44,92,0.594
+M6 - exact macro + 1:1 NN within,50,45,95,0.237
+M7 - optimal full matching,NA,NA,NA,NA
