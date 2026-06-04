@@ -291,7 +291,7 @@ xtable(clusteringRES,
        label   = "tab:clustering")
 
 # ── Fuzzy membership plots (one per segment) ──────────────────────────────────
-.membership_plot <- function(algo, start_year = 2004, start_sem = 1) {
+.membership_plot <- function(algo, title = NULL, start_year = 2004, start_sem = 1) {
   U <- algo$U
   n <- nrow(U)
   K <- ncol(U)
@@ -300,63 +300,61 @@ xtable(clusteringRES,
   sem_index0 <- (start_sem - 1) + (t - 1)
   year   <- start_year + sem_index0 %/% 2
   sem    <- (sem_index0 %% 2) + 1
-  sem_lb <- paste0(year, " S", sem)
 
-  cluster_names <- paste0("Cluster ", seq_len(K))
+  cluster_names <- paste0("C", seq_len(K))
 
   df_long <- data.frame(
     t       = rep(t, K),
-    sem_lab = rep(sem_lb, K),
     cluster = factor(rep(cluster_names, each = n), levels = cluster_names),
     value   = as.vector(U)
   )
 
-  df_end <- df_long[df_long$t == max(df_long$t), ]
+  cols_k   <- c("C1" = "black", "C2" = "#0072B2", "C3" = "#D55E00")[seq_len(K)]
+  shapes_k <- c("C1" = 4,       "C2" = 16,        "C3" = 17      )[seq_len(K)]
 
-  cols_k <- setNames(hue_pal()(K), cluster_names)
-  cols_k["Cluster 1"] <- "black"
-  if (K >= 2) cols_k["Cluster 2"] <- "#0072B2"
-  if (K >= 3) cols_k["Cluster 3"] <- "#009E73"
+  x_at  <- seq(1, n, by = 2)
+  x_lab <- as.character(start_year + (x_at - 1) %/% 2)
 
-  lts_k <- setNames(
-    rep(c("solid", "longdash", "dotted", "dotdash", "twodash"), length.out = K),
-    cluster_names
-  )
-
-  ggplot(df_long, aes(x = t, y = value, color = cluster, linetype = cluster)) +
-    geom_vline(xintercept = which(sem == 2) + 0.5,
-               linewidth = 0.3, color = "grey85") +
-    geom_line(linewidth = 1.05, lineend = "round", linejoin = "round") +
-    geom_point(size = 1.3, alpha = 0.7) +
-    geom_text(data = df_end, aes(label = cluster),
-              hjust = 0, nudge_x = 0.6, size = 3.5, show.legend = FALSE) +
-    scale_color_manual(values = cols_k) +
-    scale_linetype_manual(values = lts_k) +
-    scale_x_continuous(breaks = t, labels = sem_lb,
-                       expand = expansion(mult = c(0.01, 0.10))) +
-    scale_y_continuous(breaks = pretty_breaks(n = 6),
-                       expand = expansion(mult = c(0.03, 0.05))) +
-    labs(x = "", y = "Membership") +
-    coord_cartesian(xlim = c(1, n + 2), clip = "off") +
-    theme_classic(base_size = 12) +
+  ggplot(df_long, aes(x = t, y = value)) +
+    geom_hline(yintercept = 0.5, linetype = "dotted", color = "grey70", linewidth = 0.5) +
+    geom_line(aes(group = t), color = "grey40", linewidth = 1.1, lineend = "round") +
+    geom_point(aes(color = cluster, shape = cluster), size = 4.0, stroke = 1.3) +
+    scale_color_manual(name = NULL, values = cols_k, drop = FALSE) +
+    scale_shape_manual(name = NULL, values = shapes_k, drop = FALSE) +
+    scale_x_continuous(breaks = x_at, labels = x_lab,
+                       expand = expansion(mult = c(0.01, 0.01))) +
+    scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1),
+                       limits = c(0, 1.05), expand = expansion(mult = c(0, 0))) +
+    labs(x = "", y = "Fuzzy membership", title = title) +
+    theme_bw(base_size = 13) +
     theme(
+      plot.title         = element_text(face = "bold", size = 13, hjust = 0),
       legend.position    = "bottom",
       legend.title       = element_blank(),
-      axis.text.x        = element_text(size = 8.5, angle = 25,
-                                        hjust = 0.5, vjust = 1, face = "bold"),
-      axis.text.y        = element_text(size = 11, face = "bold"),
-      axis.title         = element_text(size = 12),
-      axis.line          = element_line(linewidth = 0.6),
-      axis.ticks         = element_line(linewidth = 0.6),
-      axis.ticks.length  = unit(2.2, "mm"),
-      plot.margin        = margin(8, 28, 8, 8)
+      legend.text        = element_text(face = "bold", size = 12),
+      legend.key.width   = unit(14, "mm"),
+      axis.text.x        = element_text(size = 11, angle = 45,
+                                        hjust = 1, vjust = 1, face = "bold"),
+      axis.text.y        = element_text(size = 12, face = "bold"),
+      axis.title.y       = element_text(size = 13),
+      panel.grid.minor   = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.major.y = element_line(colour = "grey88", linewidth = 0.35),
+      plot.margin        = margin(8, 14, 8, 8)
     )
 }
 
-.membership_plot(algo1); ggsave("clustercivil.pdf", width = 24, height = 17, units = "cm", device = cairo_pdf)
-.membership_plot(algo2); ggsave("clusterec_.pdf",   width = 24, height = 17, units = "cm", device = cairo_pdf)
-.membership_plot(algo3); ggsave("clustersig.pdf",   width = 24, height = 17, units = "cm", device = cairo_pdf)
-.membership_plot(algo4); ggsave("clustervil.pdf",   width = 24, height = 17, units = "cm", device = cairo_pdf)
+.membership_plot(algo1, title = "Civil Dwellings")
+ggsave("clustercivil.pdf", width = 34, height = 18, units = "cm", device = cairo_pdf)
+
+.membership_plot(algo2, title = "Economic Dwellings")
+ggsave("clusterec_.pdf",   width = 34, height = 18, units = "cm", device = cairo_pdf)
+
+.membership_plot(algo3, title = "High-End Dwellings")
+ggsave("clustersig.pdf",   width = 34, height = 18, units = "cm", device = cairo_pdf)
+
+.membership_plot(algo4, title = "Detached & Semi-detached Dwellings")
+ggsave("clustervil.pdf",   width = 34, height = 18, units = "cm", device = cairo_pdf)
 
 # ── Membership table (Civil + Economic) ──────────────────────────────────────
 escape_latex <- function(x) {
