@@ -502,10 +502,10 @@ xtable(trans_sub[, c("Period", "Segment", "From", "To", "Cluster", "Duration")],
        digits  = 0)
 
 # ── Sub-period hard cluster plot ──────────────────────────────────────────────
-seg_labels <- c(Civil    = "Civil dwellings",
-                Economic = "Economic dwellings",
-                Stately  = "Stately dwellings",
-                Villas   = "Villas & cottages")
+seg_labels <- c(Civil    = "Civil Dwellings",
+                Economic = "Economic Dwellings",
+                Stately  = "High-End Dwellings",
+                Villas   = "Detached & Semi-detached Dwellings")
 
 plot_sub <- do.call(rbind, lapply(names(fc_sub), function(key) {
   parts   <- strsplit(key, "_")[[1]]
@@ -580,43 +580,43 @@ plot_fuzzy$Segment <- factor(plot_fuzzy$Segment,
 plot_fuzzy$Cluster <- factor(plot_fuzzy$Cluster, levels = c("C1", "C2", "C3"))
 
 ggplot(plot_fuzzy, aes(x = SemIdx, y = Membership)) +
-  geom_hline(yintercept = 0.5, linetype = "dotted", color = "grey65", linewidth = 0.4) +
-  geom_line(aes(group = SemIdx), color = "grey45", linewidth = 0.5, lineend = "round") +
-  geom_point(aes(shape = Cluster, color = Cluster), size = 2.5) +
-  geom_vline(xintercept = 20.5, linetype = "dashed", color = "grey55", linewidth = 0.55) +
-  annotate("text", x = 10.5, y = 1.07, label = "2004-2013",
-           size = 3.2, color = "grey40", fontface = "bold") +
-  annotate("text", x = 31.5, y = 1.07, label = "2014-2024",
-           size = 3.2, color = "grey40", fontface = "bold") +
+  geom_hline(yintercept = 0.5, linetype = "dotted", color = "grey70", linewidth = 0.5) +
+  geom_line(aes(group = SemIdx), color = "grey40", linewidth = 1.1, lineend = "round") +
+  geom_point(aes(shape = Cluster, color = Cluster), size = 4.0, stroke = 1.3) +
+  geom_vline(xintercept = 20.5, linetype = "dashed", color = "grey50", linewidth = 0.7) +
+  annotate("text", x = 10.5, y = 1.07, label = "2004–2013",
+           size = 4.2, color = "grey35", fontface = "bold") +
+  annotate("text", x = 31.5, y = 1.07, label = "2014–2024",
+           size = 4.2, color = "grey35", fontface = "bold") +
   scale_color_manual(name = NULL,
                      values = c("C1" = "black", "C2" = "#0072B2", "C3" = "#D55E00"),
                      drop = FALSE) +
   scale_shape_manual(name = NULL,
                      values = c("C1" = 4, "C2" = 16, "C3" = 17),
                      drop = FALSE) +
-  scale_x_continuous(breaks = seq_len(42), labels = sem42,
+  scale_x_continuous(breaks = x_breaks, labels = x_labels,
                      expand = expansion(mult = c(0.01, 0.01))) +
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1),
                      limits = c(0, 1.12), expand = expansion(mult = c(0, 0))) +
   facet_wrap(~ Segment, ncol = 1, labeller = labeller(Segment = seg_labels)) +
   labs(x = "", y = "Fuzzy membership") +
-  theme_bw(base_size = 11) +
+  theme_bw(base_size = 13) +
   theme(
     strip.background   = element_blank(),
-    strip.text         = element_text(face = "bold", size = 11, hjust = 0),
+    strip.text         = element_text(face = "bold", size = 13, hjust = 0),
     axis.text.x        = element_text(angle = 45, hjust = 1, vjust = 1,
-                                      size = 7.5, face = "bold"),
-    axis.text.y        = element_text(size = 10, face = "bold"),
-    axis.title.y       = element_text(size = 11),
+                                      size = 11, face = "bold"),
+    axis.text.y        = element_text(size = 12, face = "bold"),
+    axis.title.y       = element_text(size = 13),
     panel.grid.minor   = element_blank(),
     panel.grid.major.x = element_blank(),
-    panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.3),
+    panel.grid.major.y = element_line(colour = "grey88", linewidth = 0.35),
     legend.position    = "bottom",
-    legend.text        = element_text(size = 10, face = "bold"),
-    legend.key.width   = unit(12, "mm"),
-    plot.margin        = margin(8, 12, 8, 8)
+    legend.text        = element_text(size = 12, face = "bold"),
+    legend.key.width   = unit(14, "mm"),
+    plot.margin        = margin(8, 14, 8, 8)
   )
-ggsave("cluster_fuzzy_subperiod.pdf", width = 24, height = 22, units = "cm", device = cairo_pdf)
+ggsave("cluster_fuzzy_subperiod.pdf", width = 36, height = 30, units = "cm", device = cairo_pdf)
 
 # ── Centroid comparison A vs B ────────────────────────────────────────────────
 for (seg in c("Civil", "Economic", "Stately", "Villas")) {
