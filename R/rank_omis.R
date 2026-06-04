@@ -269,10 +269,12 @@ plot(2:7, silo3, type = "b", xaxt = "n", main = "FS: High-End", xlab = "Number o
 plot(2:7, silo4, type = "b", xaxt = "n", main = "FS: Villas",   xlab = "Number of clusters", ylab = "FS"); axis(1, at = 2:7, las = 1)
 par(mfrow = c(1, 1))
 
-# Optimal clustering: best solution across seeds for the chosen k
-algo1 <- .best_fkm(Coef1, k = which.max(silo1) + 1)
-algo2 <- .best_fkm(Coef2, k = which.max(silo2) + 1)
-algo3 <- .best_fkm(Coef3, k = which.max(silo3) + 1)
+# Optimal clustering: k=2 forced for Civil/Economic/Stately (SIL.F selects k=3
+# but C2 and C3 are near-identical non-crisis regimes — one genuine split suffices).
+# Villas keeps data-driven k (genuine COVID structural break warrants 3 clusters).
+algo1 <- .best_fkm(Coef1, k = 2)
+algo2 <- .best_fkm(Coef2, k = 2)
+algo3 <- .best_fkm(Coef3, k = 2)
 algo4 <- .best_fkm(Coef4, k = which.max(silo4) + 1)
 
 # Hard cluster assignment table (42 semesters x 4 segments)
