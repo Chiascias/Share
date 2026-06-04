@@ -238,15 +238,29 @@ xtable(Coef2, caption = "Estimated coefficients: Economic Dwellings", label = "A
 xtable(Coef3, caption = "Estimated coefficients: Stately Dwellings",  label = "Stately",   digits = 4)
 xtable(Coef4, caption = "Estimated coefficients: Villas & Cottages",  label = "Villas",    digits = 4)
 
-# ── Fuzzy K-Medoids: K selection via SIL.F (K = 2..7) ────────────────────────
-silo1 <- silo2 <- silo3 <- silo4 <- NULL
-
-for (i in 1:6) {
-  silo1[i] <- SIL.F(Coef1, FKM.med(Coef1, k = i + 1, m = 1.5)$U)
-  silo2[i] <- SIL.F(Coef2, FKM.med(Coef2, k = i + 1, m = 1.5)$U)
-  silo3[i] <- SIL.F(Coef3, FKM.med(Coef3, k = i + 1, m = 1.5)$U)
-  silo4[i] <- SIL.F(Coef4, FKM.med(Coef4, k = i + 1, m = 1.5)$U)
+# ── Fuzzy K-Medoids: seed-stable helpers ─────────────────────────────────────
+# Average SIL.F over multiple seeds for robust k selection
+.sil_seeds <- function(Cmat, m = 1.5, seeds = 1:10) {
+  vapply(1:6, function(i) {
+    mean(vapply(seeds, function(s) {
+      set.seed(s)
+      SIL.F(Cmat, FKM.med(Cmat, k = i + 1, m = m)$U)
+    }, numeric(1)))
+  }, numeric(1))
 }
+
+# Pick the FKM.med solution with highest SIL.F among candidate seeds
+.best_fkm <- function(Cmat, k, m = 1.5, seeds = 1:10) {
+  results <- lapply(seeds, function(s) { set.seed(s); FKM.med(Cmat, k = k, m = m) })
+  sils    <- vapply(results, function(fc) SIL.F(Cmat, fc$U), numeric(1))
+  results[[which.max(sils)]]
+}
+
+# ── K selection via SIL.F (K = 2..7, averaged across seeds 1:10) ─────────────
+silo1 <- .sil_seeds(Coef1)
+silo2 <- .sil_seeds(Coef2)
+silo3 <- .sil_seeds(Coef3)
+silo4 <- .sil_seeds(Coef4)
 
 par(mar = c(4, 4, 4, 4), mfrow = c(2, 2))
 plot(2:7, silo1, type = "b", xaxt = "n", main = "FS: Civil",    xlab = "Number of clusters", ylab = "FS"); axis(1, at = 2:7, las = 1)
@@ -255,11 +269,11 @@ plot(2:7, silo3, type = "b", xaxt = "n", main = "FS: High-End", xlab = "Number o
 plot(2:7, silo4, type = "b", xaxt = "n", main = "FS: Villas",   xlab = "Number of clusters", ylab = "FS"); axis(1, at = 2:7, las = 1)
 par(mfrow = c(1, 1))
 
-# Optimal clustering
-algo1 <- FKM.med(Coef1, k = which.max(silo1) + 1, m = 1.5)
-algo2 <- FKM.med(Coef2, k = which.max(silo2) + 1, m = 1.5)
-algo3 <- FKM.med(Coef3, k = which.max(silo3) + 1, m = 1.5)
-algo4 <- FKM.med(Coef4, k = which.max(silo4) + 1, m = 1.5)
+# Optimal clustering: best solution across seeds for the chosen k
+algo1 <- .best_fkm(Coef1, k = which.max(silo1) + 1)
+algo2 <- .best_fkm(Coef2, k = which.max(silo2) + 1)
+algo3 <- .best_fkm(Coef3, k = which.max(silo3) + 1)
+algo4 <- .best_fkm(Coef4, k = which.max(silo4) + 1)
 
 # Hard cluster assignment table (42 semesters x 4 segments)
 clusteringRES <- matrix(NA, 42, 4)
@@ -411,16 +425,10 @@ seg_list  <- list(Civil = Coef1, Economic = Coef2, Stately = Coef3, Villas = Coe
 per_list  <- list(A = idx_A, B = idx_B)
 per_label <- c(A = "2004S1-2013S2", B = "2014S1-2024S2")
 
-.run_fkm <- function(Cmat, mset = 1.5, seed = 1) {
-  sil <- numeric(6)
-  for (i in 1:6) {
-    set.seed(seed)
-    cr    <- FKM.med(Cmat, k = i + 1, m = mset)
-    sil[i] <- SIL.F(Cmat, cr$U)
-  }
+.run_fkm <- function(Cmat, mset = 1.5, seeds = 1:10) {
+  sil   <- .sil_seeds(Cmat, m = mset, seeds = seeds)
   k_opt <- which.max(sil) + 1
-  set.seed(seed)
-  fc <- FKM.med(Cmat, k = k_opt, m = mset)
+  fc    <- .best_fkm(Cmat, k = k_opt, m = mset, seeds = seeds)
   cat("k_opt =", k_opt, "\n")
   cat("Medoids:\n"); print(fc$H)
   fc
